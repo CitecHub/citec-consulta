@@ -8,7 +8,7 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var datos = [], resumen = null, correo = '', filtro = 'Todos', desMes = 'todos', cacheCt = {};
-  var vista = 'res', vistaPrevia = 'bus', detId = null;
+  var vista = 'res', vistaPrevia = 'bus', detId = null, dashMes = null, movTipo = 'alta';
 
   // ---------- utilidades ----------
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -16,13 +16,18 @@
   function fecha(d) { var p = (d || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : (d || ''); }
   function mesLabel(k) { var p = k.split('-'); var s = new Date(+p[0], +p[1] - 1, 1).toLocaleDateString('es-EC', { month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
   function msg(t, err) { var m = $('loginmsg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
-  var ESTADOS_BADGE = ['Socio', 'Suspendido', 'Desafiliado', 'En revisión', 'Atención directiva'];
+  var ESTADOS_BADGE = ['Activo', 'Suspendido', 'Desafiliado', 'En revisión', 'Atención directiva'];
   function badge(estado) { var cls = 'b-' + (ESTADOS_BADGE.indexOf(estado) >= 0 ? estado.replace(/ /g, '-') : 'otro'); return el('span', 'badge ' + cls, estado); }
   function nombreCom(s) { var n = (s.nombre_comercial || '').trim(); return n && norm(n) !== norm(s.razon_social) ? n : ''; }
 
   // ---------- login ----------
-  function vistaLogin() { $('login').classList.remove('hidden'); $('app').classList.add('hidden'); $('salir').classList.add('hidden'); }
-  function vistaApp() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('salir').classList.remove('hidden'); }
+  function vistaLogin() { $('login').classList.remove('hidden'); $('app').classList.add('hidden'); $('perfil').classList.add('hidden'); cerrarMenu(); }
+  function vistaApp() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('perfil').classList.remove('hidden'); }
+  // ---------- menú de perfil ----------
+  function cerrarMenu() { $('menu').classList.add('hidden'); $('perfilBtn').setAttribute('aria-expanded', 'false'); }
+  $('perfilBtn').onclick = function (e) { e.stopPropagation(); var abrir = $('menu').classList.contains('hidden'); $('menu').classList.toggle('hidden', !abrir); $('perfilBtn').setAttribute('aria-expanded', abrir ? 'true' : 'false'); };
+  document.addEventListener('click', function (e) { if (!$('perfil').contains(e.target)) cerrarMenu(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarMenu(); });
   $('enviar').onclick = async function () {
     correo = $('email').value.trim().toLowerCase();
     if (!correo.endsWith(DOMINIO)) { msg('Usa tu correo ' + DOMINIO, true); return; }
@@ -40,8 +45,9 @@
     iniciar();
   };
   $('salir').onclick = async function () {
-    await sb.auth.signOut(); datos = []; resumen = null; cacheCt = {};
-    ['kpis', 'lista', 'det', 'desLista', 'desMeses'].forEach(function (i) { $(i).textContent = ''; });
+    cerrarMenu();
+    await sb.auth.signOut(); datos = []; resumen = null; cacheCt = {}; dashMes = null;
+    ['kpis', 'lista', 'det', 'desLista', 'desMeses', 'movLista', 'chart', 'ejes'].forEach(function (i) { $(i).textContent = ''; });
     vistaLogin(); $('paso1').classList.remove('hidden'); $('paso2').classList.add('hidden'); $('codigo').value = ''; msg('');
   };
 
@@ -52,8 +58,9 @@
     $('vRes').classList.toggle('hidden', v !== 'res');
     $('vBus').classList.toggle('hidden', v !== 'bus');
     $('vDes').classList.toggle('hidden', v !== 'des');
+    $('vMov').classList.toggle('hidden', v !== 'mov');
     $('vDet').classList.toggle('hidden', v !== 'det');
-    $('tabs').classList.toggle('hidden', v === 'des' || v === 'det');
+    $('tabs').classList.toggle('hidden', v === 'des' || v === 'det' || v === 'mov');
     $('tabRes').classList.toggle('on', v === 'res');
     $('tabBus').classList.toggle('on', v === 'bus');
     if (push) { try { history.pushState({ v: v }, ''); } catch (e) {} }
@@ -61,13 +68,14 @@
   }
   window.addEventListener('popstate', function () {
     if (vista === 'det') { mostrar(vistaPrevia === 'det' ? 'bus' : vistaPrevia); }
-    else if (vista === 'des') { mostrar('res'); }
+    else if (vista === 'des' || vista === 'mov') { mostrar('res'); }
   });
   function atras() { if (history.state && history.state.v) history.back(); else if (vista === 'det') mostrar(vistaPrevia); else mostrar('res'); }
   $('tabRes').onclick = function () { mostrar('res'); };
   $('tabBus').onclick = function () { mostrar('bus'); };
   $('detBack').onclick = atras;
   $('desBack').onclick = atras;
+  $('movBack').onclick = atras;
   $('detBack').textContent = '‹ Volver';
 
   // ---------- resumen ----------
@@ -81,13 +89,75 @@
       if (extra) b.appendChild(el('div', 'x', extra));
       b.onclick = onClick; k.appendChild(b);
     }
-    tile('Afiliados actuales', r.afiliados_total, '', function () { irA('Socios'); }, true);
-    tile('Al día', r.socios_al_dia, 'v-ok', function () { irA('Al día'); });
+    tile('Afiliados actuales', r.afiliados_total, '', function () { irA('Afiliados'); }, true);
+    tile('Activos', r.socios_al_dia, 'v-ok', function () { irA('Activo'); });
     tile('En revisión', r.en_revision, 'v-warn', function () { irA('En revisión'); });
     tile('Suspendidos', r.suspendidos, 'v-bad', function () { irA('Suspendido'); });
     tile('Atención directiva', r.atencion_directiva, 'v-warn', function () { irA('Atención directiva'); });
     tile('Desafiliados', r.desafiliados_total, 'v-bad', function () { abrirDesafiliados(); }, true,
       r.desafiliados_anio + ' este año · ' + r.desafiliados_90d + ' en los últimos 90 días');
+    pintarDash();
+  }
+
+  // ---------- dashboard afiliaciones vs desafiliaciones ----------
+  function claveMes(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  function ultimosMeses(n) { var out = [], d = new Date(); d.setDate(1); for (var i = 0; i < n; i++) { out.unshift(claveMes(d)); d.setMonth(d.getMonth() - 1); } return out; }
+  function movsDe(mes, tipo) { return ((resumen && resumen.movimientos) || []).filter(function (m) { return m.tipo === tipo && m.fecha && m.fecha.slice(0, 7) === mes; }); }
+  function mesCorto(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, 1).toLocaleDateString('es-EC', { month: 'short' }).replace('.', ''); }
+  function pintarDash() {
+    var meses24 = ultimosMeses(24); if (!dashMes) dashMes = meses24[23];
+    var sel = $('dashMes'); sel.textContent = '';
+    meses24.slice().reverse().forEach(function (m) { var o = el('option', null, mesLabel(m)); o.value = m; sel.appendChild(o); });
+    sel.value = dashMes; sel.onchange = function () { dashMes = sel.value; pintarDash(); };
+    var na = movsDe(dashMes, 'alta').length, nb = movsDe(dashMes, 'baja').length, neto = na - nb;
+    $('nAlta').textContent = na; $('nBaja').textContent = nb;
+    $('movAlta').onclick = function () { abrirMov('alta'); };
+    $('movBaja').onclick = function () { abrirMov('baja'); };
+    $('neto').textContent = ''; $('neto').appendChild(document.createTextNode('Balance del mes: '));
+    $('neto').appendChild(el('b', null, (neto > 0 ? '+' : '') + neto + (Math.abs(neto) === 1 ? ' socio' : ' socios')));
+    // gráfico: 12 meses que terminan en el mes elegido
+    var fin = meses24.indexOf(dashMes), ini = Math.max(0, fin - 11), meses = meses24.slice(ini, fin + 1);
+    var vals = meses.map(function (m) { return [movsDe(m, 'alta').length, movsDe(m, 'baja').length]; });
+    var max = Math.max.apply(null, vals.map(function (v) { return Math.max(v[0], v[1]); }).concat([1]));
+    var ch = $('chart'), ej = $('ejes'); ch.textContent = ''; ej.textContent = '';
+    meses.forEach(function (m, i) {
+      var g = el('button', 'grp' + (m === dashMes ? ' on' : ''));
+      g.title = mesLabel(m) + ': ' + vals[i][0] + ' afiliaciones, ' + vals[i][1] + ' desafiliaciones';
+      g.setAttribute('aria-label', g.title);
+      var a = el('i', 'a'), b = el('i', 'b');
+      a.style.height = (vals[i][0] / max * 82) + '%'; b.style.height = (vals[i][1] / max * 82) + '%';
+      g.appendChild(a); g.appendChild(b);
+      if (m === dashMes) g.appendChild(el('span', 'tl', vals[i][0] + ' / ' + vals[i][1]));
+      g.onclick = function () { dashMes = m; pintarDash(); };
+      ch.appendChild(g);
+      ej.appendChild(el('span', m === dashMes ? 'on' : null, mesCorto(m)));
+    });
+  }
+  function abrirMov(tipo, push) {
+    movTipo = tipo;
+    var lista = movsDe(dashMes, tipo).map(function (m) { var s = porId(m.id); return s ? { s: s, fecha: m.fecha } : null; }).filter(Boolean);
+    lista.sort(function (x, y) { return x.fecha < y.fecha ? 1 : x.fecha > y.fecha ? -1 : 0; });
+    $('movTit').textContent = (tipo === 'alta' ? 'Afiliaciones' : 'Desafiliaciones') + ' en ' + mesLabel(dashMes).toLowerCase() + ' (' + lista.length + ')';
+    var l = $('movLista'); l.textContent = '';
+    if (!lista.length) l.appendChild(el('div', 'card msg', 'No hubo ' + (tipo === 'alta' ? 'afiliaciones' : 'desafiliaciones') + ' en este mes.'));
+    lista.forEach(function (x) {
+      var card = tarjeta(x.s);
+      card.querySelector('.izq').appendChild(el('div', 'sub', (tipo === 'alta' ? 'Afiliado el ' : 'Desafiliado el ') + fecha(x.fecha)));
+      l.appendChild(card);
+    });
+    if (push !== false) mostrar('mov', true);
+  }
+  function porId(id) { for (var i = 0; i < datos.length; i++) if (datos[i].id === id) return datos[i]; return null; }
+  function tarjeta(s) {
+    var card = el('button', 'card item'), row = el('div', 'row'), left = el('div', 'izq');
+    left.appendChild(el('div', 'name', s.razon_social));
+    var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', nc));
+    if (s.categoria) left.appendChild(el('div', 'sub', 'Categoría: ' + s.categoria));
+    if (s.facturas_pendientes > 0) left.appendChild(el('div', 'sub', s.facturas_pendientes + (s.facturas_pendientes === 1 ? ' factura pendiente' : ' facturas pendientes')));
+    row.appendChild(left); row.appendChild(badge(s.estado_socio));
+    card.appendChild(row);
+    card.onclick = function () { abrirDetalle(s.id); };
+    return card;
   }
   function irA(f) { filtro = f; $('q').value = ''; pintarChips(); pintar(); mostrar('bus'); }
 
@@ -144,11 +214,11 @@
   }
 
   // ---------- búsqueda ----------
-  var CHIPS = ['Todos', 'Socios', 'En revisión', 'Suspendido', 'Atención directiva', 'Desafiliado', 'Con facturas pendientes'];
-  var ACTIVOS = ['Socio', 'En revisión', 'Suspendido', 'Atención directiva'];
+  var CHIPS = ['Todos', 'Afiliados', 'Activo', 'En revisión', 'Suspendido', 'Atención directiva', 'Desafiliado'];
+  var ACTIVOS = ['Activo', 'En revisión', 'Suspendido', 'Atención directiva'];
   function pintarChips() {
     var c = $('chips'); c.textContent = '';
-    var lista = CHIPS.slice(); if (filtro === 'Al día') lista.splice(2, 0, 'Al día');
+    var lista = CHIPS.slice();
     lista.forEach(function (e) {
       var b = el('button', 'chip' + (e === filtro ? ' on' : ''), e);
       b.onclick = function () { filtro = e; pintarChips(); pintar(); };
@@ -159,9 +229,7 @@
   function pasa(s) {
     switch (filtro) {
       case 'Todos': return true;
-      case 'Socios': return ACTIVOS.indexOf(s.estado_socio) >= 0;
-      case 'Al día': return s.estado_socio === 'Socio';
-      case 'Con facturas pendientes': return s.facturas_pendientes > 0;
+      case 'Afiliados': return ACTIVOS.indexOf(s.estado_socio) >= 0;
       default: return s.estado_socio === filtro;
     }
   }
@@ -261,13 +329,16 @@
       else { $('count').textContent = 'No se pudo cargar. Revisa tu conexión.'; }
       return;
     }
-    datos = r.data || [];
+    datos = (r.data || []).map(function (x) { if (x.estado_socio === 'Socio') x.estado_socio = 'Activo'; return x; });
+    if (resumen) pintarDash();
+    if (vista === 'mov') abrirMov(movTipo, false);
     $('actualizado').textContent = 'Actualizado: ' + new Date().toLocaleString('es-EC');
     pintarChips(); pintar();
   }
   async function iniciar() {
     var s = await sb.auth.getSession();
     if (!s.data.session) { vistaLogin(); return; }
+    $('menuMail').textContent = (s.data.session.user && s.data.session.user.email) || '';
     vistaApp(); cargar();
   }
   sb.auth.onAuthStateChange(function (ev) { if (ev === 'SIGNED_OUT') vistaLogin(); });
