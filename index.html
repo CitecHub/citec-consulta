@@ -39,17 +39,15 @@ header{background:#0e325c;color:#fff;padding:10px 16px;display:flex;justify-cont
 .sw.a{background:var(--alta)}.sw.b{background:var(--baja)}
 .neto{font-size:14px;color:var(--mut);margin-top:10px}
 .neto b{color:var(--tx)}
-.chart{display:flex;align-items:flex-end;gap:2px;height:130px;margin-top:14px;border-bottom:1px solid var(--bd)}
-.grp{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px;height:100%;border:0;background:none;padding:0 1px;border-radius:6px 6px 0 0;cursor:pointer;position:relative}
-.grp.on{background:var(--bg)}
-.grp i{display:block;width:40%;max-width:12px;border-radius:4px 4px 0 0;min-height:2px}
-.grp i.a{background:var(--alta)}.grp i.b{background:var(--baja)}
-.grp .tl{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--tx);white-space:nowrap}
-.ejes{display:flex;gap:2px}
-.ejes span{flex:1;text-align:center;font-size:10px;color:var(--mut);padding-top:4px}
-.ejes span.on{color:var(--tx);font-weight:700}
-.leyenda{display:flex;gap:14px;font-size:12px;color:var(--mut);margin-top:10px}
-.leyenda span{display:flex;align-items:center;gap:6px}
+.pie{display:flex;justify-content:center;margin-top:14px}
+.pie svg{width:190px;height:190px;display:block}
+.pie .seg{cursor:pointer;transition:opacity .15s}
+.pie .seg:hover{opacity:.85}
+.pie text{pointer-events:none}
+.pie .c1{font-size:30px;font-weight:700;fill:var(--tx)}
+.pie .c2{font-size:12px;fill:var(--mut)}
+.mov .p{font-size:13px;color:var(--mut);font-weight:600;margin-left:4px}
+.veredicto{text-align:center;font-size:14px;font-weight:600;margin-top:12px;padding:8px 10px;border-radius:10px;background:var(--bg)}
 main{max-width:720px;margin:0 auto;padding:16px}
 input[type=text],input[type=email],input[type=search],select{width:100%;font-size:16px;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx)}
 button.pri{width:100%;margin-top:12px;font-size:16px;padding:12px;border:0;border-radius:10px;background:var(--pri);color:var(--onpri);font-weight:600}
@@ -127,14 +125,12 @@ h2{font-size:16px;margin:18px 0 6px}
       <h2>Afiliaciones vs desafiliaciones</h2>
       <div class="card dash" id="dash">
         <select id="dashMes" aria-label="Mes de análisis"></select>
+        <div class="pie" id="pie"></div>
+        <div class="veredicto" id="veredicto"></div>
         <div class="duo">
-          <button class="mov" id="movAlta"><div class="v" id="nAlta">0</div><div class="l"><i class="sw a"></i>Afiliaciones</div></button>
-          <button class="mov" id="movBaja"><div class="v" id="nBaja">0</div><div class="l"><i class="sw b"></i>Desafiliaciones</div></button>
+          <button class="mov" id="movAlta"><div class="v"><span id="nAlta">0</span><span class="p" id="pAlta"></span></div><div class="l"><i class="sw a"></i>Socios nuevos</div></button>
+          <button class="mov" id="movBaja"><div class="v"><span id="nBaja">0</span><span class="p" id="pBaja"></span></div><div class="l"><i class="sw b"></i>Desafiliados</div></button>
         </div>
-        <div class="neto" id="neto"></div>
-        <div class="chart" id="chart" aria-label="Afiliaciones y desafiliaciones de los últimos 12 meses"></div>
-        <div class="ejes" id="ejes"></div>
-        <div class="leyenda"><span><i class="sw a"></i>Afiliaciones</span><span><i class="sw b"></i>Desafiliaciones</span></div>
       </div>
     </div>
 

@@ -47,7 +47,7 @@
   $('salir').onclick = async function () {
     cerrarMenu();
     await sb.auth.signOut(); datos = []; resumen = null; cacheCt = {}; dashMes = null;
-    ['kpis', 'lista', 'det', 'desLista', 'desMeses', 'movLista', 'chart', 'ejes'].forEach(function (i) { $(i).textContent = ''; });
+    ['kpis', 'lista', 'det', 'desLista', 'desMeses', 'movLista', 'pie'].forEach(function (i) { $(i).textContent = ''; });
     vistaLogin(); $('paso1').classList.remove('hidden'); $('paso2').classList.add('hidden'); $('codigo').value = ''; msg('');
   };
 
@@ -103,7 +103,6 @@
   function claveMes(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
   function ultimosMeses(n) { var out = [], d = new Date(); d.setDate(1); for (var i = 0; i < n; i++) { out.unshift(claveMes(d)); d.setMonth(d.getMonth() - 1); } return out; }
   function movsDe(mes, tipo) { return ((resumen && resumen.movimientos) || []).filter(function (m) { return m.tipo === tipo && m.fecha && m.fecha.slice(0, 7) === mes; }); }
-  function mesCorto(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, 1).toLocaleDateString('es-EC', { month: 'short' }).replace('.', ''); }
   function pintarDash() {
     var meses24 = ultimosMeses(24); if (!dashMes) dashMes = meses24[23];
     var sel = $('dashMes'); sel.textContent = '';
@@ -113,31 +112,46 @@
     $('nAlta').textContent = na; $('nBaja').textContent = nb;
     $('movAlta').onclick = function () { abrirMov('alta'); };
     $('movBaja').onclick = function () { abrirMov('baja'); };
-    $('neto').textContent = ''; $('neto').appendChild(document.createTextNode('Balance del mes: '));
-    $('neto').appendChild(el('b', null, (neto > 0 ? '+' : '') + neto + (Math.abs(neto) === 1 ? ' socio' : ' socios')));
-    // gráfico: 12 meses que terminan en el mes elegido
-    var fin = meses24.indexOf(dashMes), ini = Math.max(0, fin - 11), meses = meses24.slice(ini, fin + 1);
-    var vals = meses.map(function (m) { return [movsDe(m, 'alta').length, movsDe(m, 'baja').length]; });
-    var max = Math.max.apply(null, vals.map(function (v) { return Math.max(v[0], v[1]); }).concat([1]));
-    var ch = $('chart'), ej = $('ejes'); ch.textContent = ''; ej.textContent = '';
-    meses.forEach(function (m, i) {
-      var g = el('button', 'grp' + (m === dashMes ? ' on' : ''));
-      g.title = mesLabel(m) + ': ' + vals[i][0] + ' afiliaciones, ' + vals[i][1] + ' desafiliaciones';
-      g.setAttribute('aria-label', g.title);
-      var a = el('i', 'a'), b = el('i', 'b');
-      a.style.height = (vals[i][0] / max * 82) + '%'; b.style.height = (vals[i][1] / max * 82) + '%';
-      g.appendChild(a); g.appendChild(b);
-      if (m === dashMes) g.appendChild(el('span', 'tl', vals[i][0] + ' / ' + vals[i][1]));
-      g.onclick = function () { dashMes = m; pintarDash(); };
-      ch.appendChild(g);
-      ej.appendChild(el('span', m === dashMes ? 'on' : null, mesCorto(m)));
+    var tot = na + nb, pa = tot ? Math.round(na / tot * 100) : 0, pb = tot ? 100 - pa : 0;
+    $('pAlta').textContent = tot ? pa + '%' : ''; $('pBaja').textContent = tot ? pb + '%' : '';
+    var ver = $('veredicto');
+    ver.textContent = !tot ? 'Sin movimientos en este mes'
+      : neto > 0 ? 'Más socios nuevos que desafiliados (+' + neto + ')'
+      : neto < 0 ? 'Más desafiliados que socios nuevos (' + neto + ')'
+      : 'Igual número de socios nuevos y desafiliados';
+    ver.style.color = !tot || !neto ? 'var(--mut)' : neto > 0 ? 'var(--ok)' : 'var(--bad)';
+    pintarPastel(na, nb, neto);
+  }
+  // gráfico de pastel (dona) del mes elegido
+  var NS = 'http://www.w3.org/2000/svg';
+  function svgEl(t, at) { var e = document.createElementNS(NS, t); for (var k in at) e.setAttribute(k, at[k]); return e; }
+  function pintarPastel(na, nb, neto) {
+    var box = $('pie'); box.textContent = '';
+    var R = 70, W = 30, C = 2 * Math.PI * R, tot = na + nb, GAP = (na && nb) ? 2 : 0;
+    var svg = svgEl('svg', { viewBox: '0 0 190 190', role: 'img', 'aria-label': 'Mes elegido: ' + na + ' socios nuevos y ' + nb + ' desafiliados' });
+    var g = svgEl('g', { transform: 'rotate(-90 95 95)' });
+    if (!tot) g.appendChild(svgEl('circle', { cx: 95, cy: 95, r: R, fill: 'none', stroke: 'var(--bd)', 'stroke-width': W }));
+    var ini = 0;
+    [[na, 'var(--alta)', 'alta', 'socios nuevos'], [nb, 'var(--baja)', 'baja', 'desafiliados']].forEach(function (x) {
+      if (!x[0]) return;
+      var len = x[0] / tot * C;
+      var c = svgEl('circle', { cx: 95, cy: 95, r: R, fill: 'none', stroke: x[1], 'stroke-width': W, 'class': 'seg',
+        'stroke-dasharray': Math.max(len - GAP, 0.01) + ' ' + C, 'stroke-dashoffset': -(ini + GAP / 2) });
+      var t = svgEl('title', {}); t.textContent = x[0] + ' ' + x[3] + ' (' + Math.round(x[0] / tot * 100) + '%)'; c.appendChild(t);
+      c.addEventListener('click', function () { abrirMov(x[2]); });
+      g.appendChild(c); ini += len;
     });
+    svg.appendChild(g);
+    var t1 = svgEl('text', { x: 95, y: 98, 'text-anchor': 'middle', 'class': 'c1' }); t1.textContent = tot ? (neto > 0 ? '+' : '') + neto : '0';
+    var t2 = svgEl('text', { x: 95, y: 118, 'text-anchor': 'middle', 'class': 'c2' }); t2.textContent = 'balance del mes';
+    svg.appendChild(t1); svg.appendChild(t2);
+    box.appendChild(svg);
   }
   function abrirMov(tipo, push) {
     movTipo = tipo;
     var lista = movsDe(dashMes, tipo).map(function (m) { var s = porId(m.id); return s ? { s: s, fecha: m.fecha } : null; }).filter(Boolean);
     lista.sort(function (x, y) { return x.fecha < y.fecha ? 1 : x.fecha > y.fecha ? -1 : 0; });
-    $('movTit').textContent = (tipo === 'alta' ? 'Afiliaciones' : 'Desafiliaciones') + ' en ' + mesLabel(dashMes).toLowerCase() + ' (' + lista.length + ')';
+    $('movTit').textContent = (tipo === 'alta' ? 'Socios nuevos' : 'Desafiliados') + ' en ' + mesLabel(dashMes).toLowerCase() + ' (' + lista.length + ')';
     var l = $('movLista'); l.textContent = '';
     if (!lista.length) l.appendChild(el('div', 'card msg', 'No hubo ' + (tipo === 'alta' ? 'afiliaciones' : 'desafiliaciones') + ' en este mes.'));
     lista.forEach(function (x) {
