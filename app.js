@@ -8,7 +8,7 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var datos = [], resumen = null, correo = '', filtro = 'Todos', desMes = 'todos', cacheCt = {};
-  var vista = 'res', vistaPrevia = 'bus', detRuc = null;
+  var vista = 'res', vistaPrevia = 'bus', detId = null;
 
   // ---------- utilidades ----------
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -136,9 +136,8 @@
       var left = el('div');
       left.appendChild(el('div', 'name', d.razon_social));
       var nc = nombreCom(d); if (nc) left.appendChild(el('div', 'sub', nc));
-      left.appendChild(el('div', 'sub', 'RUC ' + d.ruc));
       row.appendChild(left); row.appendChild(el('div', 'sub', d.fecha ? fecha(d.fecha) : 'Sin fecha'));
-      row.onclick = function () { abrirDetalle(d.ruc); };
+      row.onclick = function () { abrirDetalle(d.id); };
       dl.appendChild(row);
     });
     if (filtrada.length > lim) { var m2 = el('button', 'more', 'Ver más'); m2.onclick = function () { dl.dataset.lim = lim + 50; pintarDesaf(); }; dl.appendChild(m2); }
@@ -168,16 +167,16 @@
   }
   function pintar() {
     var q = norm($('q').value), l = $('lista'); l.textContent = '';
-    var res = datos.filter(function (s) { return pasa(s) && (!q || norm(s.razon_social + ' ' + (s.nombre_comercial || '') + ' ' + s.ruc).indexOf(q) >= 0); });
+    var res = datos.filter(function (s) { return pasa(s) && (!q || norm(s.razon_social + ' ' + (s.nombre_comercial || '')).indexOf(q) >= 0); });
     $('count').textContent = res.length + ' resultado(s)';
     res.slice(0, 100).forEach(function (s) {
       var card = el('button', 'card item'), row = el('div', 'row'), left = el('div');
       left.appendChild(el('div', 'name', s.razon_social));
       var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', nc));
-      left.appendChild(el('div', 'sub', 'RUC ' + s.ruc));
+      if (s.categoria) left.appendChild(el('div', 'sub', 'Categoría: ' + s.categoria));
       row.appendChild(left); row.appendChild(badge(s.estado_socio));
       card.appendChild(row);
-      card.onclick = function () { abrirDetalle(s.ruc); };
+      card.onclick = function () { abrirDetalle(s.id); };
       l.appendChild(card);
     });
     if (res.length > 100) l.appendChild(el('p', 'msg', 'Mostrando 100. Afina la búsqueda para ver más.'));
@@ -199,16 +198,16 @@
     if (c.email && /^[^@\s]+@[^@\s]+$/.test(c.email)) link('Correo', 'mailto:' + c.email);
     box.appendChild(acts);
   }
-  function abrirDetalle(ruc) {
-    var s = null; for (var i = 0; i < datos.length; i++) { if (datos[i].ruc === ruc) { s = datos[i]; break; } }
-    detRuc = ruc;
+  function abrirDetalle(id) {
+    var s = null; for (var i = 0; i < datos.length; i++) { if (datos[i].id === id) { s = datos[i]; break; } }
+    detId = id;
     var d = $('det'); d.textContent = '';
     if (!s) { d.appendChild(el('div', 'msg', 'No se encontró la información de este socio.')); mostrar('det', true); return; }
 
     var head = el('div', 'card'), row = el('div', 'row'), left = el('div');
     left.appendChild(el('div', 'name', s.razon_social));
     var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', 'Nombre comercial: ' + nc));
-    left.appendChild(el('div', 'sub', 'RUC ' + s.ruc + (s.ciudad ? ' · ' + s.ciudad : '')));
+    left.appendChild(el('div', 'sub', 'Categoría actual: ' + (s.categoria || 'Sin categoría registrada')));
     row.appendChild(left); row.appendChild(badge(s.estado_socio)); head.appendChild(row); d.appendChild(head);
 
     d.appendChild(el('h2', null, 'Facturas pendientes'));
@@ -235,13 +234,13 @@
       box.classList.toggle('hidden', abierto); flecha.textContent = abierto ? '›' : '⌄';
       if (abierto || box.dataset.ok) return;
       box.textContent = 'Cargando contactos…';
-      var c = cacheCt[ruc];
+      var c = cacheCt[id];
       if (c === undefined) {
-        var r = await sb.rpc('consulta_contacto', { p_ruc: ruc });
+        var r = await sb.rpc('consulta_contacto_v2', { p_id: id });
         if (r.error) { box.textContent = 'No se pudo cargar el contacto.'; return; }
-        c = cacheCt[ruc] = r.data;
+        c = cacheCt[id] = r.data;
       }
-      if (detRuc !== ruc) return;
+      if (detId !== id) return;
       box.textContent = ''; box.dataset.ok = '1';
       if (!c) { box.appendChild(el('div', 'sub', 'Este socio no tiene ficha en Monday.')); return; }
       bloqueContacto(box, 'Gerente general / CEO', c.gerente);
@@ -254,9 +253,9 @@
 
   // ---------- carga ----------
   async function cargar() {
-    var rr = await sb.rpc('consulta_resumen');
+    var rr = await sb.rpc('consulta_resumen_v2');
     if (!rr.error) { resumen = rr.data; pintarResumen(); if (vista === 'des') pintarDesaf(); }
-    var r = await sb.rpc('consulta_socios');
+    var r = await sb.rpc('consulta_socios_v2');
     if (r.error) {
       if (r.error.code === '42501' || /autoriz/i.test(r.error.message || '')) { await sb.auth.signOut(); vistaLogin(); msg('Tu cuenta no está autorizada.', true); }
       else { $('count').textContent = 'No se pudo cargar. Revisa tu conexión.'; }
