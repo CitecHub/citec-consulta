@@ -244,9 +244,40 @@
       var b = el('button', 'chip' + (e === filtro ? ' on' : ''), e);
       b.onclick = function () { filtro = e; pintarChips(); pintar(); };
       c.appendChild(b);
-      if (e === filtro && e !== 'Todos') setTimeout(function () { b.scrollIntoView({ block: 'nearest', inline: 'center' }); }, 0);
+      if (e === filtro) setTimeout(function () { try { c.scrollTo({ left: b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2, behavior: 'smooth' }); } catch (x) { c.scrollLeft = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2; } }, 0);
     });
   }
+  // ---------- deslizar con el dedo ----------
+  // Resumen ⇄ Buscar socio, y en Buscar socio: Todos ⇄ Afiliados ⇄ … ⇄ Desafiliado.
+  // Desde "Todos", deslizar hacia la derecha regresa al Resumen.
+  function animar(id, dir) {
+    var n = $(id); n.classList.remove('desl-izq', 'desl-der'); void n.offsetWidth;
+    n.classList.add(dir > 0 ? 'desl-izq' : 'desl-der');
+  }
+  function deslizar(dir) { // dir = +1 siguiente (dedo hacia la izquierda), -1 anterior
+    if (vista === 'res') { if (dir > 0) { mostrar('bus'); animar('vBus', 1); } return; }
+    if (vista !== 'bus') return;
+    var i = CHIPS.indexOf(filtro), j = i + dir;
+    if (j < 0) { mostrar('res'); animar('vRes', -1); return; }
+    if (j >= CHIPS.length) return;
+    filtro = CHIPS[j]; pintarChips(); pintar(); animar('lista', dir); window.scrollTo(0, 0);
+  }
+  (function () {
+    var x0 = null, y0 = 0, t0 = 0;
+    var app = $('app');
+    app.addEventListener('touchstart', function (e) {
+      x0 = null;
+      if (e.touches.length !== 1 || (vista !== 'res' && vista !== 'bus')) return;
+      if (e.target.closest && e.target.closest('#chips, select, input, .menu')) return; // la fila de filtros y los campos se usan normal
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+    }, { passive: true });
+    app.addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - t0 > 800) return; // no es un deslizamiento horizontal
+      deslizar(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  })();
   function pasa(s) {
     switch (filtro) {
       case 'Todos': return true;
