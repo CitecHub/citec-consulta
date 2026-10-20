@@ -62,9 +62,14 @@
   };
 
   // ---------- navegación ----------
+  // Orden de las vistas para saber hacia dónde va la animación al cambiar de pantalla
+  var NIVEL = { res: 0, bus: 1, des: 2, mov: 2, det: 3 };
+  var VISTA_ID = { res: 'vRes', bus: 'vBus', des: 'vDes', mov: 'vMov', det: 'vDet' };
   function mostrar(v, push) {
     if (v === 'det' && vista !== 'det') vistaPrevia = vista;
+    var dir = NIVEL[v] > NIVEL[vista] ? 1 : NIVEL[v] < NIVEL[vista] ? -1 : 0;
     vista = v;
+    if (dir) animar(VISTA_ID[v], dir);
     $('vRes').classList.toggle('hidden', v !== 'res');
     $('vBus').classList.toggle('hidden', v !== 'bus');
     $('vDes').classList.toggle('hidden', v !== 'des');
@@ -252,34 +257,42 @@
       if (e === filtro) setTimeout(function () { try { c.scrollTo({ left: b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2, behavior: 'smooth' }); } catch (x) { c.scrollLeft = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2; } }, 0);
     });
   }
-  // ---------- deslizar con el dedo ----------
+  // ---------- deslizar con el dedo (en cualquier parte de la pantalla) ----------
   // Resumen ⇄ Buscar socio, y en Buscar socio: Todos ⇄ Afiliados ⇄ … ⇄ Desafiliado.
   // Desde "Todos", deslizar hacia la derecha regresa al Resumen.
+  // En la ficha, desafiliados y listado del mes, deslizar hacia la derecha equivale a "Volver".
   function animar(id, dir) {
     var n = $(id); n.classList.remove('desl-izq', 'desl-der'); void n.offsetWidth;
     n.classList.add(dir > 0 ? 'desl-izq' : 'desl-der');
   }
   function deslizar(dir) { // dir = +1 siguiente (dedo hacia la izquierda), -1 anterior
-    if (vista === 'res') { if (dir > 0) { mostrar('bus'); animar('vBus', 1); } return; }
-    if (vista !== 'bus') return;
+    if (vista === 'det' || vista === 'des' || vista === 'mov') { if (dir < 0) atras(); return; }
+    if (vista === 'res') { if (dir > 0) mostrar('bus'); return; }
     var i = CHIPS.indexOf(filtro), j = i + dir;
-    if (j < 0) { mostrar('res'); animar('vRes', -1); return; }
+    if (j < 0) { mostrar('res'); return; }
     if (j >= CHIPS.length) return;
     filtro = CHIPS[j]; pintarChips(); pintar(); animar('lista', dir); window.scrollTo(0, 0);
   }
   (function () {
-    var x0 = null, y0 = 0, t0 = 0;
-    var app = $('app');
-    app.addEventListener('touchstart', function (e) {
+    var x0 = null, y0 = 0, t0 = 0, scr = null, scrL = 0;
+    // Elemento con desplazamiento horizontal propio (p. ej. la fila de filtros o un texto largo en el buscador)
+    function desplazableH(n) {
+      for (; n && n !== document.body && n.nodeType === 1; n = n.parentNode) if (n.scrollWidth > n.clientWidth + 1) return n;
+      return null;
+    }
+    document.addEventListener('touchstart', function (e) {
       x0 = null;
-      if (e.touches.length !== 1 || (vista !== 'res' && vista !== 'bus')) return;
-      if (e.target.closest && e.target.closest('#chips, select, input, .menu')) return; // la fila de filtros y los campos se usan normal
+      if (e.touches.length !== 1 || $('app').classList.contains('hidden') || !$('menu').classList.contains('hidden')) return;
       x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+      scr = desplazableH(e.target); scrL = scr ? scr.scrollLeft : 0;
     }, { passive: true });
-    app.addEventListener('touchend', function (e) {
+    document.addEventListener('touchcancel', function () { x0 = null; }, { passive: true });
+    document.addEventListener('touchend', function (e) {
       if (x0 === null) return;
       var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - t0 > 800) return; // no es un deslizamiento horizontal
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2 || Date.now() - t0 > 1000) return; // no es un deslizamiento horizontal
+      // Si el dedo movió la fila de filtros (o el texto del buscador), ese gesto era para desplazarla, no para cambiar de pantalla
+      if (scr && Math.abs(scr.scrollLeft - scrL) > 2) return;
       deslizar(dx < 0 ? 1 : -1);
     }, { passive: true });
   })();

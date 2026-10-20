@@ -74,11 +74,15 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:12px;border:0;borde
 .kpi.go::after{content:"›";position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:24px;color:var(--mut)}
 .fechaafil{font-size:14px;color:var(--tx);margin-top:6px}
 .fechaclave{font-size:14px;font-weight:600;color:var(--tx);margin-top:2px}
-@keyframes deslIzq{from{opacity:.3;transform:translateX(28px)}to{opacity:1;transform:none}}
-@keyframes deslDer{from{opacity:.3;transform:translateX(-28px)}to{opacity:1;transform:none}}
-.desl-izq{animation:deslIzq .22s ease-out}.desl-der{animation:deslDer .22s ease-out}
-@media(prefers-reduced-motion:reduce){.desl-izq,.desl-der{animation:none}}
-#app{touch-action:pan-y}
+@keyframes deslIzq{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
+@keyframes deslDer{from{opacity:0;transform:translateX(-48px)}to{opacity:1;transform:none}}
+.desl-izq{animation:deslIzq .3s cubic-bezier(.2,.8,.2,1)}.desl-der{animation:deslDer .3s cubic-bezier(.2,.8,.2,1)}
+/* Respuesta visual al tocar tarjetas y botones */
+.item,.drow,.kpi,.mov,.ctbtn{transition:transform .14s ease,box-shadow .14s ease,background-color .14s ease;-webkit-tap-highlight-color:transparent}
+.item:active,.kpi:active,.mov:active,.ctbtn:active{transform:scale(.97);box-shadow:0 2px 10px rgba(14,50,92,.18)}
+.drow:active{background-color:var(--bg)}
+@media(prefers-reduced-motion:reduce){.desl-izq,.desl-der{animation:none}.item,.drow,.kpi,.mov,.ctbtn{transition:none}.item:active,.kpi:active,.mov:active,.ctbtn:active{transform:none}}
+html,body{touch-action:pan-y pinch-zoom}
 .v-ok{color:var(--ok)}.v-warn{color:var(--warn)}.v-bad{color:var(--bad)}
 h2{font-size:16px;margin:18px 0 6px}
 .back{background:none;border:0;color:var(--pri);font-size:16px;font-weight:600;padding:4px 0;margin-bottom:6px}
