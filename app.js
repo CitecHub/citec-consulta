@@ -78,6 +78,7 @@
     $('tabs').classList.toggle('hidden', v === 'des' || v === 'det' || v === 'mov');
     $('tabRes').classList.toggle('on', v === 'res');
     $('tabBus').classList.toggle('on', v === 'bus');
+    $('tabs').classList.toggle('en-bus', v === 'bus'); // mueve el resaltado de la pestaña
     if (push) { try { history.pushState({ v: v }, ''); } catch (e) {} }
     window.scrollTo(0, 0);
   }
@@ -252,7 +253,10 @@
     var lista = CHIPS.slice();
     lista.forEach(function (e) {
       var b = el('button', 'chip' + (e === filtro ? ' on' : ''), e);
-      b.onclick = function () { filtro = e; pintarChips(); pintar(); };
+      b.onclick = function () {
+        var dir = CHIPS.indexOf(e) - CHIPS.indexOf(filtro); if (!dir) return;
+        filtro = e; pintarChips(); pintar(); animar('lista', dir);
+      };
       c.appendChild(b);
       if (e === filtro) setTimeout(function () { try { c.scrollTo({ left: b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2, behavior: 'smooth' }); } catch (x) { c.scrollLeft = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2; } }, 0);
     });
