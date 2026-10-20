@@ -19,6 +19,10 @@
   var ESTADOS_BADGE = ['Activo', 'Suspendido', 'Desafiliado', 'En revisión', 'Atención directiva'];
   function badge(estado) { var cls = 'b-' + (ESTADOS_BADGE.indexOf(estado) >= 0 ? estado.replace(/ /g, '-') : 'otro'); return el('span', 'badge ' + cls, estado); }
   // Fecha clave del socio: próxima renovación (afiliados) o fecha de desafiliación (desafiliados)
+  function lineaAfil(s) {
+    if (!s.estado_socio || s.estado_socio === 'Prospecto') return '';
+    return 'Fecha de afiliación: ' + (s.fecha_afiliacion ? fecha(s.fecha_afiliacion) : 'sin registrar');
+  }
   function lineaFecha(s) {
     if (s.estado_socio === 'Desafiliado') return 'Fecha de desafiliación: ' + (s.fecha_desafiliacion ? fecha(s.fecha_desafiliacion) : 'sin registrar');
     if (['Activo', 'Suspendido', 'En revisión', 'Atención directiva'].indexOf(s.estado_socio) >= 0) return 'Próxima renovación: ' + (s.proxima_renovacion ? fecha(s.proxima_renovacion) : 'sin registrar');
@@ -173,6 +177,7 @@
     left.appendChild(el('div', 'name', s.razon_social));
     var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', nc));
     if (s.categoria) left.appendChild(el('div', 'sub', 'Categoría: ' + s.categoria));
+    var la = lineaAfil(s); if (la) left.appendChild(el('div', 'sub', la));
     var lf = lineaFecha(s); if (lf) left.appendChild(el('div', 'sub', lf));
     if (s.facturas_pendientes > 0) left.appendChild(el('div', 'sub', s.facturas_pendientes + (s.facturas_pendientes === 1 ? ' factura pendiente' : ' facturas pendientes')));
     row.appendChild(left); row.appendChild(badge(s.estado_socio));
@@ -294,6 +299,7 @@
       left.appendChild(el('div', 'name', s.razon_social));
       var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', nc));
       if (s.categoria) left.appendChild(el('div', 'sub', 'Categoría: ' + s.categoria));
+      var la = lineaAfil(s); if (la) left.appendChild(el('div', 'sub', la));
       var lf = lineaFecha(s); if (lf) left.appendChild(el('div', 'sub', lf));
       row.appendChild(left); row.appendChild(badge(s.estado_socio));
       card.appendChild(row);
@@ -329,6 +335,7 @@
     left.appendChild(el('div', 'name', s.razon_social));
     var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', 'Nombre comercial: ' + nc));
     left.appendChild(el('div', 'sub', 'Categoría actual: ' + (s.categoria || 'Sin categoría registrada')));
+    var lad = lineaAfil(s); if (lad) left.appendChild(el('div', 'fechaafil', lad));
     var lfd = lineaFecha(s); if (lfd) left.appendChild(el('div', 'fechaclave', lfd));
     row.appendChild(left); row.appendChild(badge(s.estado_socio)); head.appendChild(row); d.appendChild(head);
 
@@ -377,7 +384,7 @@
   async function cargar() {
     var rr = await sb.rpc('consulta_resumen_v2');
     if (!rr.error) { resumen = rr.data; pintarResumen(); if (vista === 'des') pintarDesaf(); }
-    var r = await sb.rpc('consulta_socios_v3');
+    var r = await sb.rpc('consulta_socios_v4');
     if (r.error) {
       if (r.error.code === '42501' || /autoriz/i.test(r.error.message || '')) { await sb.auth.signOut({ scope: 'local' }); vistaLogin(); msg('Tu cuenta no está autorizada.', true); }
       else { $('count').textContent = 'No se pudo cargar. Revisa tu conexión.'; }
