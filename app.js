@@ -409,11 +409,32 @@
     $('actualizado').textContent = 'Actualizado: ' + new Date().toLocaleString('es-EC');
     pintarChips(); pintar();
   }
+  // ---------- bienvenida ----------
+  // Nombre de quien entra: el del perfil si existe; si no, la primera parte del correo
+  // (william@citec.com.ec → "William", rossana.perez@citec.com.ec → "Rossana").
+  function nombreUsuario(u) {
+    var m = (u && u.user_metadata) || {};
+    var n = (m.nombre || m.full_name || m.name || '').trim().split(/\s+/)[0];
+    if (!n) n = ((u && u.email) || '').split('@')[0].split(/[._\-+0-9]/)[0];
+    return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
+  }
+  function bienvenida(u) {
+    var b = $('bienvenida'), n = nombreUsuario(u);
+    $('bienNombre').textContent = n;
+    $('bienTexto').textContent = n ? 'Bienvenido/a' : 'Bienvenido/a a la consulta de socios';
+    b.classList.remove('hidden', 'sale');
+    var cerrar = function () {
+      if (b.classList.contains('hidden') || b.classList.contains('sale')) return;
+      b.classList.add('sale'); setTimeout(function () { b.classList.add('hidden'); b.classList.remove('sale'); }, 400);
+    };
+    b.onclick = cerrar; setTimeout(cerrar, 2200);
+  }
   async function iniciar() {
     var s = await sb.auth.getSession();
     if (!s.data.session) { vistaLogin(); return; }
-    $('menuMail').textContent = (s.data.session.user && s.data.session.user.email) || '';
-    vistaApp(); cargar();
+    var u = s.data.session.user;
+    $('menuMail').textContent = (u && u.email) || '';
+    bienvenida(u); vistaApp(); cargar();
   }
   sb.auth.onAuthStateChange(function (ev) { if (ev === 'SIGNED_OUT') vistaLogin(); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && datos.length && vista !== 'det') cargar(); });

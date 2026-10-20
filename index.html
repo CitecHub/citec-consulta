@@ -83,6 +83,16 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:12px;border:0;borde
 .drow:active{background-color:var(--bg)}
 @media(prefers-reduced-motion:reduce){.desl-izq,.desl-der{animation:none}.item,.drow,.kpi,.mov,.ctbtn{transition:none}.item:active,.kpi:active,.mov:active,.ctbtn:active{transform:none}}
 html,body{touch-action:pan-y pinch-zoom}
+/* Pantalla de bienvenida al abrir la app */
+.bienvenida{position:fixed;inset:0;z-index:50;background:#0e325c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;animation:bienEntra .45s ease-out;cursor:pointer}
+.bienvenida img{width:84px;height:auto;margin-bottom:14px;animation:bienSube .6s cubic-bezier(.2,.8,.2,1)}
+.bienvenida .bt{font-size:18px;opacity:.85;animation:bienSube .6s .08s cubic-bezier(.2,.8,.2,1) both}
+.bienvenida .bn{font-size:34px;font-weight:700;line-height:1.15;animation:bienSube .6s .16s cubic-bezier(.2,.8,.2,1) both}
+.bienvenida.sale{animation:bienSale .4s ease-in forwards}
+@keyframes bienEntra{from{opacity:0}to{opacity:1}}
+@keyframes bienSube{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes bienSale{to{opacity:0;transform:scale(1.04)}}
+@media(prefers-reduced-motion:reduce){.bienvenida,.bienvenida img,.bienvenida .bt,.bienvenida .bn,.bienvenida.sale{animation:none}}
 .v-ok{color:var(--ok)}.v-warn{color:var(--warn)}.v-bad{color:var(--bad)}
 h2{font-size:16px;margin:18px 0 6px}
 .back{background:none;border:0;color:var(--pri);font-size:16px;font-weight:600;padding:4px 0;margin-bottom:6px}
@@ -104,6 +114,11 @@ h2{font-size:16px;margin:18px 0 6px}
 </style>
 </head>
 <body>
+<div id="bienvenida" class="bienvenida hidden" role="status" aria-live="polite">
+  <img src="logo-blanco.png" alt="CITEC" width="100" height="72">
+  <div class="bt" id="bienTexto">Bienvenido/a</div>
+  <div class="bn" id="bienNombre"></div>
+</div>
 <header>
   <div class="brand"><img src="logo-blanco.png" alt="CITEC" width="36" height="26"><h1>CITEC <span>·</span> Consulta de Socios</h1></div>
   <div class="perfil hidden" id="perfil">
