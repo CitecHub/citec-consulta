@@ -189,9 +189,12 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 #desMeses{padding-top:4px;padding-bottom:4px}
 
 /* ===== Ingreso ===== */
-#login .card{padding:26px 20px;margin-top:8px;border-color:rgba(150,248,98,.22)}
-#login .name{font-size:40px;margin:14px 0 10px}
-#login .msg{margin:0 0 18px;font-size:14.5px}
+/* El cuadro de ingreso queda centrado en la pantalla, con el título centrado */
+#login{min-height:calc(100vh - 110px);min-height:calc(100dvh - 110px);display:flex;align-items:center;justify-content:center}
+#login .card{width:100%;max-width:440px;padding:30px 22px 26px;margin:0;border-color:rgba(150,248,98,.22)}
+#login .name{font-size:52px;margin:4px 0 12px;text-align:center}
+#login .msg{margin:0 0 20px;font-size:14.5px;text-align:center}
+#login #loginmsg{margin:14px 0 0}
 
 /* ===== Transiciones ===== */
 @keyframes deslIzq{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
@@ -217,6 +220,49 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 .pulso-top,.baja-res,.ctbtn,button.pri{transition:transform .14s ease;-webkit-tap-highlight-color:transparent}
 .pulso-top:active,.baja-res:active,.ctbtn:active,button.pri:active{transform:scale(.98)}
 @media(prefers-reduced-motion:reduce){.tabs::before,.tab,.chip,.fila,.drow,.ley,.mrow,.mov,.pulso-top,.baja-res,.ctbtn,button.pri,.pie .ba,.pie .bb,.pie .mes{transition:none}.desl-izq,.desl-der,#vRes.revela *,.pie .crece .ba,.pie .crece .bb{animation:none!important}#vRes.pre>*{opacity:1}.pulso-top:active,.baja-res:active,.ctbtn:active,button.pri:active{transform:none}}
+
+/* ===== Modo claro: página clara; cabecera, pestañas y bloque de afiliados conservan el marino de marca ===== */
+@media(prefers-color-scheme:light){
+  :root{color-scheme:light;--tinta:#0b2545;--gris:#55677e;--linea:#dde5ef;--hoja:#fff;--hoja-2:#f4f7fb;--acento:#2c8f1c;
+    --ok:#2c9a2a;--warn:#b7791f;--bad:#d2412f;--dir:#6b4fbb;--gray:#7a8696;--alta:#4fbf2a;--baja:#e5583f}
+  html{background:#f2f5fa}
+  body{background:radial-gradient(80% 45% at 100% 0%,rgba(150,248,98,.22) 0,transparent 70%),radial-gradient(80% 45% at 0% 100%,rgba(47,125,225,.12) 0,transparent 70%),#f2f5fa}
+  :focus-visible{outline-color:var(--acento)}
+  header{background:var(--marino)}
+  .banda{background:var(--marino);margin:-16px calc(50% - 50vw) 16px;padding:2px calc(50vw - 50%) 16px}
+  header,.banda,.pulso,.bienvenida{--tx:#fff;--mut:#a9bbd1;--bd:rgba(255,255,255,.1);--ok:#96f862;--warn:#ffc65c;--bad:#ff7b6b;--dir:#b9a3ff;--gray:#8fa3bb;color:#fff}
+  .menu{--tx:#0b2545;--mut:#55677e;--bd:#dde5ef;--bad:#d2412f;color:var(--tx);background:#fff;border-color:var(--linea);box-shadow:0 16px 40px rgba(11,37,69,.2)}
+  .menu button:hover{background:#f2f5fa}
+  .card,.hoja,.datos,.baja-res,.ctbtn{background:#fff;border-color:var(--linea);box-shadow:0 1px 2px rgba(11,37,69,.05),0 10px 26px -14px rgba(11,37,69,.22)}
+  .baja-res{border-color:rgba(210,65,47,.28)}
+  .ctbtn{border-color:rgba(44,143,28,.35)}.ctbtn .sub{color:var(--acento)}
+  h2,#login .name,.ficha-cab .nom{color:var(--marino)}
+  input[type=text],input[type=email],input[type=search],select{background-color:#fff;border-color:#cfd9e6;color:var(--tinta)}
+  input:focus,select:focus{border-color:var(--acento);box-shadow:0 0 0 3px rgba(44,143,28,.15)}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--acento) 50%),linear-gradient(135deg,var(--acento) 50%,transparent 50%)}
+  select option{background:#fff;color:var(--tinta)}
+  input[type=search]{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c8f1c' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")}
+  .back{color:var(--acento)}
+  .more{border-color:var(--acento);color:var(--acento)}
+  .chip{background:#fff;border-color:#cfd9e6;color:var(--tinta)}
+  .chip.on{background:var(--lima);border-color:#7fe04a;color:var(--marino)}
+  .badge::before{box-shadow:none}
+  .nodo{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 20%,transparent)}
+  .pulso .nodo{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent),0 0 10px color-mix(in srgb,currentColor 55%,transparent)}
+  .dato.clave dd,#nAlta,.mrow.on{color:var(--acento)}
+  .acts a{border-color:var(--acento);color:var(--acento)}
+  .acts a:first-child{background:var(--lima);border-color:var(--lima);color:var(--marino)}
+  .sw.a,.sw.b{box-shadow:none}
+  .pie .foco{fill:rgba(150,248,98,.16);stroke:rgba(44,143,28,.35)}
+  .pie .on .mes,.pie .va{fill:var(--acento)}
+  .pie .eje{stroke:#b9c6d6}
+  .pie .on .ba{filter:none}
+  .pie .ba,.pie .bb{opacity:.38}
+  .bar{box-shadow:none}
+  .fila:active,.drow:active,.ley:active,.mrow:active,button.mov:active{background-color:rgba(44,143,28,.07)}
+  #login .card{border-color:var(--linea)}
+  button.pri{box-shadow:0 6px 18px rgba(79,191,42,.3)}
+}
 
 /* ===== Bienvenida al abrir la app ===== */
 .bienvenida{position:fixed;inset:0;z-index:50;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;animation:bienEntra .45s ease-out;cursor:pointer;
@@ -250,7 +296,7 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 <main>
   <section id="login" class="hidden">
     <div class="card">
-      <p class="name">Ingreso del personal</p>
+      <p class="name">Bienvenido</p>
       <p class="msg">Escribe tu correo @citec.com.ec. Te enviaremos un código de 6 dígitos.</p>
       <div id="paso1">
         <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="nombre@citec.com.ec">
