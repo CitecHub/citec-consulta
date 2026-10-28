@@ -110,8 +110,8 @@
     tile('En revisión', r.en_revision, 'v-warn', function () { irA('En revisión'); });
     tile('Suspendidos', r.suspendidos, 'v-bad', function () { irA('Suspendido'); });
     tile('Atención directiva', r.atencion_directiva, 'v-warn', function () { irA('Atención directiva'); });
-    tile('Desafiliados', r.desafiliados_total, 'v-bad', function () { abrirDesafiliados(); }, true,
-      r.desafiliados_anio + ' este año · ' + r.desafiliados_90d + ' en los últimos 90 días');
+    tile('Desafiliados en ' + new Date().getFullYear(), r.desafiliados_anio, 'v-bad', function () { abrirDesafiliados(); }, true,
+      r.desafiliados_90d + ' en los últimos 90 días');
     pintarDash();
   }
 
@@ -194,17 +194,22 @@
   function irA(f) { filtro = f; $('q').value = ''; pintarChips(); pintar(); mostrar('bus'); }
 
   // ---------- desafiliados ----------
-  function abrirDesafiliados() { desMes = 'todos'; pintarDesaf(); mostrar('des', true); }
+  // Por defecto se ve el año en curso; el histórico completo queda en el filtro "Todo el histórico".
+  function abrirDesafiliados() { desMes = 'anio'; pintarDesaf(); mostrar('des', true); }
   function pintarDesaf() {
     var lista = (resumen && resumen.desafiliados) || [];
+    var anio = String(new Date().getFullYear());
+    var delAnio = lista.filter(function (d) { return d.fecha && d.fecha.slice(0, 4) === anio; }).length;
     var porMes = {}, sinFecha = 0;
     lista.forEach(function (d) { if (d.fecha) { var k = d.fecha.slice(0, 7); porMes[k] = (porMes[k] || 0) + 1; } else sinFecha++; });
     var meses = Object.keys(porMes).sort().reverse();
-    $('desTotal').textContent = lista.length;
-    $('desSub').textContent = resumen.desafiliados_anio + ' en ' + new Date().getFullYear() + ' · ' + resumen.desafiliados_90d + ' en los últimos 90 días';
+    $('desEtiq').textContent = 'Socios desafiliados en ' + anio;
+    $('desTotal').textContent = resumen.desafiliados_anio;
+    $('desSub').textContent = resumen.desafiliados_90d + ' en los últimos 90 días · ' + lista.length + ' en total (histórico)';
 
     var sel = $('desMes'); sel.textContent = '';
-    var o = el('option', null, 'Todos los meses (' + lista.length + ')'); o.value = 'todos'; sel.appendChild(o);
+    var oa = el('option', null, 'Este año (' + delAnio + ')'); oa.value = 'anio'; sel.appendChild(oa);
+    var o = el('option', null, 'Todo el histórico (' + lista.length + ')'); o.value = 'todos'; sel.appendChild(o);
     meses.forEach(function (m) { var op = el('option', null, mesLabel(m) + ' (' + porMes[m] + ')'); op.value = m; sel.appendChild(op); });
     sel.value = desMes;
     sel.onchange = function () { desMes = sel.value; pintarDesaf(); };
@@ -218,7 +223,7 @@
       left.appendChild(el('div', null, mesLabel(m)));
       var bar = el('div', 'bar'); bar.style.width = Math.max(4, Math.round(porMes[m] / max * 100)) + '%'; left.appendChild(bar);
       b.appendChild(left); b.appendChild(el('div', 'name', String(porMes[m])));
-      b.onclick = function () { desMes = (desMes === m ? 'todos' : m); pintarDesaf(); $('desTit').scrollIntoView({ behavior: 'smooth' }); };
+      b.onclick = function () { desMes = (desMes === m ? 'anio' : m); pintarDesaf(); $('desTit').scrollIntoView({ behavior: 'smooth' }); };
       box.appendChild(b);
     });
     if (meses.length > 12 && box.dataset.todos !== '1') {
@@ -228,8 +233,8 @@
     }
     if (sinFecha) box.appendChild(el('div', 'sub', sinFecha + ' sin fecha registrada'));
 
-    var filtrada = lista.filter(function (d) { return desMes === 'todos' || (d.fecha && d.fecha.slice(0, 7) === desMes); });
-    $('desTit').textContent = (desMes === 'todos' ? 'Todos los desafiliados' : 'Desafiliados en ' + mesLabel(desMes).toLowerCase()) + ' (' + filtrada.length + ')';
+    var filtrada = lista.filter(function (d) { return desMes === 'todos' || (desMes === 'anio' ? d.fecha && d.fecha.slice(0, 4) === anio : d.fecha && d.fecha.slice(0, 7) === desMes); });
+    $('desTit').textContent = (desMes === 'todos' ? 'Todos los desafiliados (histórico)' : desMes === 'anio' ? 'Desafiliados en ' + anio : 'Desafiliados en ' + mesLabel(desMes).toLowerCase()) + ' (' + filtrada.length + ')';
     var dl = $('desLista'); dl.textContent = '';
     if (!filtrada.length) { dl.appendChild(el('div', 'msg', 'Sin desafiliaciones en este periodo.')); return; }
     var lim = +(dl.dataset.lim || 50);
