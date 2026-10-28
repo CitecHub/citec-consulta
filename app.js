@@ -95,13 +95,31 @@
   $('detBack').textContent = '‹ Volver';
 
   // ---------- resumen ----------
+  // ---------- transiciones de entrada ----------
+  // La primera vez que se pinta el Resumen, sus bloques aparecen en secuencia y las cifras cuentan
+  // hacia arriba; ocurre al cerrarse la bienvenida para que se vea.
+  var reducir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var yaRevelado = false, trasBien = [];
+  function trasBienvenida(fn) { if ($('bienvenida').classList.contains('hidden')) fn(); else trasBien.push(fn); }
+  function contar(n, hasta) {
+    if (reducir) { n.textContent = hasta; return; }
+    var t0 = null, dur = 900;
+    (function paso(t) { if (!t0) t0 = t; var x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 3);
+      n.textContent = Math.round(hasta * e); if (x < 1) requestAnimationFrame(paso); })(performance.now());
+  }
+  function cifras(scope, animar) {
+    scope.querySelectorAll('[data-n]').forEach(function (n) { var v = +n.dataset.n; if (animar) { n.textContent = '0'; contar(n, v); } else n.textContent = v; });
+  }
+
+  // ---------- resumen ----------
   function pintarResumen() {
     var r = resumen; if (!r) return;
     var k = $('kpis'); k.textContent = '';
     // Pulso: total de afiliados y su composición por estado (barra + filas que llevan al filtro)
     var pulso = el('div', 'pulso'), top = el('button', 'pulso-top');
-    top.appendChild(el('span', 'et', 'Afiliados actuales'));
-    top.appendChild(el('span', 'cifra', String(r.afiliados_total)));
+    top.appendChild(el('span', 'pildora', 'Membresía CITEC'));
+    var cifra = el('span', 'cifra'); cifra.dataset.n = r.afiliados_total; top.appendChild(cifra);
+    top.appendChild(el('span', 'et', 'afiliados actuales'));
     top.onclick = function () { irA('Afiliados'); };
     pulso.appendChild(top);
     var partes = [['Activos', r.socios_al_dia, 'var(--ok)', 'Activo'], ['En revisión', r.en_revision, 'var(--warn)', 'En revisión'],
@@ -109,69 +127,91 @@
     var tot = r.afiliados_total || 0, barra = el('div', 'barra'), ley = el('div', 'leyenda');
     barra.setAttribute('role', 'img');
     barra.setAttribute('aria-label', partes.map(function (x) { return x[1] + ' ' + x[0].toLowerCase(); }).join(', '));
-    partes.forEach(function (x) {
-      if (x[1] > 0) { var seg = el('i'); seg.style.flexGrow = x[1]; seg.style.background = x[2]; barra.appendChild(seg); }
-      var b = el('button', 'ley'), n = el('i', 'nodo'); n.style.color = x[2];
-      b.appendChild(n); b.appendChild(el('span', null, x[0])); b.appendChild(el('b', null, String(x[1])));
+    partes.forEach(function (x, i) {
+      if (x[1] > 0) { var seg = el('i'); seg.style.flexGrow = x[1]; seg.style.background = x[2]; seg.style.setProperty('--i', i); barra.appendChild(seg); }
+      var b = el('button', 'ley'), n = el('i', 'nodo'), v = el('b'); n.style.color = x[2]; v.dataset.n = x[1];
+      b.appendChild(n); b.appendChild(el('span', null, x[0])); b.appendChild(v);
       b.appendChild(el('em', null, tot ? Math.round(x[1] / tot * 100) + '%' : ''));
       b.onclick = function () { irA(x[3]); }; ley.appendChild(b);
     });
     pulso.appendChild(barra); pulso.appendChild(ley); k.appendChild(pulso);
-    var des = el('button', 'baja-res'), dn = el('i', 'nodo'), dt = el('span');
-    dn.style.color = 'var(--bad)';
+    var des = el('button', 'baja-res'), dn = el('i', 'nodo'), dt = el('span'), dc = el('span', 'cifra-m');
+    dn.style.color = 'var(--bad)'; dc.dataset.n = r.desafiliados_anio;
     dt.appendChild(el('span', 't', 'Desafiliados en ' + new Date().getFullYear()));
     dt.appendChild(el('span', 'sub', r.desafiliados_90d + ' en los últimos 90 días'));
-    des.appendChild(dn); des.appendChild(dt); des.appendChild(el('span', 'cifra-m', String(r.desafiliados_anio)));
+    des.appendChild(dn); des.appendChild(dt); des.appendChild(dc);
     des.onclick = function () { abrirDesafiliados(); }; k.appendChild(des);
     pintarDash();
+    if (yaRevelado) { cifras(k, false); return; }
+    yaRevelado = true; cifras(k, false);
+    var v = $('vRes'); v.classList.add('pre');
+    trasBienvenida(function () { v.classList.remove('pre'); v.classList.add('revela'); cifras(k, true); setTimeout(function () { v.classList.remove('revela'); }, 1400); });
   }
 
   // ---------- dashboard afiliaciones vs desafiliaciones ----------
   function claveMes(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
   function ultimosMeses(n) { var out = [], d = new Date(); d.setDate(1); for (var i = 0; i < n; i++) { out.unshift(claveMes(d)); d.setMonth(d.getMonth() - 1); } return out; }
   function movsDe(mes, tipo) { return ((resumen && resumen.movimientos) || []).filter(function (m) { return m.tipo === tipo && m.fecha && m.fecha.slice(0, 7) === mes; }); }
+  function mesCorto(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, 1).toLocaleDateString('es-EC', { month: 'short' }).replace('.', ''); }
+  function conSigno(n) { return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n); }
+  var ventanaPrev = '';
   function pintarDash() {
     var meses24 = ultimosMeses(24); if (!dashMes) dashMes = meses24[23];
     var sel = $('dashMes'); sel.textContent = '';
     meses24.slice().reverse().forEach(function (m) { var o = el('option', null, mesLabel(m)); o.value = m; sel.appendChild(o); });
     sel.value = dashMes; sel.onchange = function () { dashMes = sel.value; pintarDash(); };
+    var idx = meses24.indexOf(dashMes), prev = idx > 0 ? meses24[idx - 1] : null;
     var na = movsDe(dashMes, 'alta').length, nb = movsDe(dashMes, 'baja').length, neto = na - nb;
+    var pa = prev ? movsDe(prev, 'alta').length : null, pb = prev ? movsDe(prev, 'baja').length : null;
     $('nAlta').textContent = na; $('nBaja').textContent = nb;
+    $('nNeto').textContent = conSigno(neto);
+    $('nNeto').style.color = !neto ? 'var(--tx)' : neto > 0 ? 'var(--ok)' : 'var(--bad)';
+    var ant = prev ? ' vs ' + mesCorto(prev) : '';
+    $('pAlta').textContent = prev ? conSigno(na - pa) + ant : '';
+    $('pBaja').textContent = prev ? conSigno(nb - pb) + ant : '';
+    $('dNeto').textContent = prev ? (pa - pb) + ' en ' + mesCorto(prev) : '';
     $('movAlta').onclick = function () { abrirMov('alta'); };
     $('movBaja').onclick = function () { abrirMov('baja'); };
-    var tot = na + nb, pa = tot ? Math.round(na / tot * 100) : 0, pb = tot ? 100 - pa : 0;
-    $('pAlta').textContent = tot ? pa + '%' : ''; $('pBaja').textContent = tot ? pb + '%' : '';
-    var ver = $('veredicto');
-    ver.textContent = !tot ? 'Sin movimientos en este mes'
-      : neto > 0 ? 'Más socios nuevos que desafiliados (+' + neto + ')'
-      : neto < 0 ? 'Más desafiliados que socios nuevos (' + neto + ')'
-      : 'Igual número de socios nuevos y desafiliados';
-    ver.style.color = !tot || !neto ? 'var(--mut)' : neto > 0 ? 'var(--ok)' : 'var(--bad)';
-    pintarPastel(na, nb, neto);
+    var tot = na + nb, ver = $('veredicto');
+    ver.textContent = !tot ? 'Sin movimientos en ' + mesLabel(dashMes).toLowerCase()
+      : neto > 0 ? 'Más socios nuevos que desafiliados en ' + mesLabel(dashMes).toLowerCase()
+      : neto < 0 ? 'Más desafiliados que socios nuevos en ' + mesLabel(dashMes).toLowerCase()
+      : 'Igual número de socios nuevos y desafiliados en ' + mesLabel(dashMes).toLowerCase();
+    // Últimos 12 meses; si el mes elegido es más antiguo, la ventana termina en ese mes
+    var fin = idx >= 12 ? 23 : Math.max(idx, 11), ventana = meses24.slice(fin - 11, fin + 1);
+    var anim = ventana.join() !== ventanaPrev; ventanaPrev = ventana.join();
+    pintarBarras(ventana, anim);
   }
-  // gráfico de pastel (dona) del mes elegido
+  // Barras divergentes: socios nuevos hacia arriba, desafiliados hacia abajo; el mes elegido resalta
   var NS = 'http://www.w3.org/2000/svg';
   function svgEl(t, at) { var e = document.createElementNS(NS, t); for (var k in at) e.setAttribute(k, at[k]); return e; }
-  function pintarPastel(na, nb, neto) {
+  function pintarBarras(meses, anim) {
     var box = $('pie'); box.textContent = '';
-    var R = 70, W = 30, C = 2 * Math.PI * R, tot = na + nb, GAP = (na && nb) ? 2 : 0;
-    var svg = svgEl('svg', { viewBox: '0 0 190 190', role: 'img', 'aria-label': 'Mes elegido: ' + na + ' socios nuevos y ' + nb + ' desafiliados' });
-    var g = svgEl('g', { transform: 'rotate(-90 95 95)' });
-    if (!tot) g.appendChild(svgEl('circle', { cx: 95, cy: 95, r: R, fill: 'none', stroke: 'var(--bd)', 'stroke-width': W }));
-    var ini = 0;
-    [[na, 'var(--alta)', 'alta', 'socios nuevos'], [nb, 'var(--baja)', 'baja', 'desafiliados']].forEach(function (x) {
-      if (!x[0]) return;
-      var len = x[0] / tot * C;
-      var c = svgEl('circle', { cx: 95, cy: 95, r: R, fill: 'none', stroke: x[1], 'stroke-width': W, 'class': 'seg',
-        'stroke-dasharray': Math.max(len - GAP, 0.01) + ' ' + C, 'stroke-dashoffset': -(ini + GAP / 2) });
-      var t = svgEl('title', {}); t.textContent = x[0] + ' ' + x[3] + ' (' + Math.round(x[0] / tot * 100) + '%)'; c.appendChild(t);
-      c.addEventListener('click', function () { abrirMov(x[2]); });
-      g.appendChild(c); ini += len;
+    var W = 340, H = 196, top = 22, bot = 26, gw = W / meses.length, bw = Math.min(14, gw * 0.5);
+    var vals = meses.map(function (m) { return [movsDe(m, 'alta').length, movsDe(m, 'baja').length]; });
+    var maxA = Math.max.apply(null, vals.map(function (v) { return v[0]; }).concat([1]));
+    var maxB = Math.max.apply(null, vals.map(function (v) { return v[1]; }).concat([1]));
+    var u = (H - top - bot) / (maxA + maxB), y0 = top + maxA * u;
+    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'class': anim && !reducir ? 'crece' : '',
+      'aria-label': 'Últimos 12 meses: ' + meses.map(function (m, i) { return mesLabel(m) + ' ' + vals[i][0] + ' nuevos y ' + vals[i][1] + ' desafiliados'; }).join('; ') });
+    meses.forEach(function (m, i) {
+      var x = i * gw, cx = x + gw / 2, on = m === dashMes, a = vals[i][0], b = vals[i][1];
+      var g = svgEl('g', { 'class': 'grp' + (on ? ' on' : '') });
+      g.style.setProperty('--d', (i * 35) + 'ms');
+      if (on) g.appendChild(svgEl('rect', { x: x + 2, y: 4, width: gw - 4, height: H - 8, rx: 8, 'class': 'foco' }));
+      if (a) g.appendChild(svgEl('rect', { x: cx - bw / 2, y: y0 - a * u, width: bw, height: a * u, rx: Math.min(4, a * u / 2), 'class': 'ba' }));
+      if (b) g.appendChild(svgEl('rect', { x: cx - bw / 2, y: y0, width: bw, height: b * u, rx: Math.min(4, b * u / 2), 'class': 'bb' }));
+      if (on) {
+        if (a) { var ta = svgEl('text', { x: cx, y: y0 - a * u - 5, 'text-anchor': 'middle', 'class': 'va' }); ta.textContent = a; g.appendChild(ta); }
+        if (b) { var tb = svgEl('text', { x: cx, y: y0 + b * u + 12, 'text-anchor': 'middle', 'class': 'vb' }); tb.textContent = b; g.appendChild(tb); }
+      }
+      var tm = svgEl('text', { x: cx, y: H - 8, 'text-anchor': 'middle', 'class': 'mes' }); tm.textContent = mesCorto(m); g.appendChild(tm);
+      var hit = svgEl('rect', { x: x, y: 0, width: gw, height: H, fill: 'transparent' }); g.appendChild(hit);
+      var tt = svgEl('title', {}); tt.textContent = mesLabel(m) + ': ' + a + ' socios nuevos, ' + b + ' desafiliados'; g.appendChild(tt);
+      g.addEventListener('click', function () { dashMes = m; pintarDash(); });
+      svg.appendChild(g);
     });
-    svg.appendChild(g);
-    var t1 = svgEl('text', { x: 95, y: 98, 'text-anchor': 'middle', 'class': 'c1' }); t1.textContent = tot ? (neto > 0 ? '+' : '') + neto : '0';
-    var t2 = svgEl('text', { x: 95, y: 118, 'text-anchor': 'middle', 'class': 'c2' }); t2.textContent = 'balance del mes';
-    svg.appendChild(t1); svg.appendChild(t2);
+    svg.appendChild(svgEl('line', { x1: 0, x2: W, y1: y0, y2: y0, 'class': 'eje' }));
     box.appendChild(svg);
   }
   function abrirMov(tipo, push) {
@@ -452,7 +492,7 @@
     b.classList.remove('hidden', 'sale');
     var cerrar = function () {
       if (b.classList.contains('hidden') || b.classList.contains('sale')) return;
-      b.classList.add('sale'); setTimeout(function () { b.classList.add('hidden'); b.classList.remove('sale'); }, 400);
+      b.classList.add('sale'); setTimeout(function () { b.classList.add('hidden'); b.classList.remove('sale'); trasBien.splice(0).forEach(function (f) { f(); }); }, 400);
     };
     b.onclick = cerrar; setTimeout(cerrar, 2200);
   }
