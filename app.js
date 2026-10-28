@@ -75,7 +75,7 @@
     $('vDes').classList.toggle('hidden', v !== 'des');
     $('vMov').classList.toggle('hidden', v !== 'mov');
     $('vDet').classList.toggle('hidden', v !== 'det');
-    $('tabs').classList.toggle('hidden', v === 'des' || v === 'det' || v === 'mov');
+    $('banda').classList.toggle('hidden', v === 'des' || v === 'det' || v === 'mov');
     $('tabRes').classList.toggle('on', v === 'res');
     $('tabBus').classList.toggle('on', v === 'bus');
     $('tabs').classList.toggle('en-bus', v === 'bus'); // mueve el resaltado de la pestaña
@@ -98,20 +98,31 @@
   function pintarResumen() {
     var r = resumen; if (!r) return;
     var k = $('kpis'); k.textContent = '';
-    function tile(label, val, cls, onClick, big, extra) {
-      var b = el('button', 'kpi go' + (big ? ' big' : ''));
-      b.appendChild(el('div', 'v ' + (cls || ''), String(val)));
-      b.appendChild(el('div', 'l', label));
-      if (extra) b.appendChild(el('div', 'x', extra));
-      b.onclick = onClick; k.appendChild(b);
-    }
-    tile('Afiliados actuales', r.afiliados_total, '', function () { irA('Afiliados'); }, true);
-    tile('Activos', r.socios_al_dia, 'v-ok', function () { irA('Activo'); });
-    tile('En revisión', r.en_revision, 'v-warn', function () { irA('En revisión'); });
-    tile('Suspendidos', r.suspendidos, 'v-bad', function () { irA('Suspendido'); });
-    tile('Atención directiva', r.atencion_directiva, 'v-warn', function () { irA('Atención directiva'); });
-    tile('Desafiliados en ' + new Date().getFullYear(), r.desafiliados_anio, 'v-bad', function () { abrirDesafiliados(); }, true,
-      r.desafiliados_90d + ' en los últimos 90 días');
+    // Pulso: total de afiliados y su composición por estado (barra + filas que llevan al filtro)
+    var pulso = el('div', 'pulso'), top = el('button', 'pulso-top');
+    top.appendChild(el('span', 'et', 'Afiliados actuales'));
+    top.appendChild(el('span', 'cifra', String(r.afiliados_total)));
+    top.onclick = function () { irA('Afiliados'); };
+    pulso.appendChild(top);
+    var partes = [['Activos', r.socios_al_dia, 'var(--ok)', 'Activo'], ['En revisión', r.en_revision, 'var(--warn)', 'En revisión'],
+                  ['Suspendidos', r.suspendidos, 'var(--bad)', 'Suspendido'], ['Atención directiva', r.atencion_directiva, 'var(--dir)', 'Atención directiva']];
+    var tot = r.afiliados_total || 0, barra = el('div', 'barra'), ley = el('div', 'leyenda');
+    barra.setAttribute('role', 'img');
+    barra.setAttribute('aria-label', partes.map(function (x) { return x[1] + ' ' + x[0].toLowerCase(); }).join(', '));
+    partes.forEach(function (x) {
+      if (x[1] > 0) { var seg = el('i'); seg.style.flexGrow = x[1]; seg.style.background = x[2]; barra.appendChild(seg); }
+      var b = el('button', 'ley'), n = el('i', 'nodo'); n.style.color = x[2];
+      b.appendChild(n); b.appendChild(el('span', null, x[0])); b.appendChild(el('b', null, String(x[1])));
+      b.appendChild(el('em', null, tot ? Math.round(x[1] / tot * 100) + '%' : ''));
+      b.onclick = function () { irA(x[3]); }; ley.appendChild(b);
+    });
+    pulso.appendChild(barra); pulso.appendChild(ley); k.appendChild(pulso);
+    var des = el('button', 'baja-res'), dn = el('i', 'nodo'), dt = el('span');
+    dn.style.color = 'var(--bad)';
+    dt.appendChild(el('span', 't', 'Desafiliados en ' + new Date().getFullYear()));
+    dt.appendChild(el('span', 'sub', r.desafiliados_90d + ' en los últimos 90 días'));
+    des.appendChild(dn); des.appendChild(dt); des.appendChild(el('span', 'cifra-m', String(r.desafiliados_anio)));
+    des.onclick = function () { abrirDesafiliados(); }; k.appendChild(des);
     pintarDash();
   }
 
@@ -169,7 +180,7 @@
     lista.sort(function (x, y) { return x.fecha < y.fecha ? 1 : x.fecha > y.fecha ? -1 : 0; });
     $('movTit').textContent = (tipo === 'alta' ? 'Socios nuevos' : 'Desafiliados') + ' en ' + mesLabel(dashMes).toLowerCase() + ' (' + lista.length + ')';
     var l = $('movLista'); l.textContent = '';
-    if (!lista.length) l.appendChild(el('div', 'card msg', 'No hubo ' + (tipo === 'alta' ? 'afiliaciones' : 'desafiliaciones') + ' en este mes.'));
+    if (!lista.length) l.appendChild(el('div', 'msg', 'No hubo ' + (tipo === 'alta' ? 'afiliaciones' : 'desafiliaciones') + ' en este mes.'));
     lista.forEach(function (x) {
       var card = tarjeta(x.s);
       card.querySelector('.izq').appendChild(el('div', 'sub', (tipo === 'alta' ? 'Afiliado el ' : 'Desafiliado el ') + fecha(x.fecha)));
@@ -179,7 +190,7 @@
   }
   function porId(id) { for (var i = 0; i < datos.length; i++) if (datos[i].id === id) return datos[i]; return null; }
   function tarjeta(s) {
-    var card = el('button', 'card item'), row = el('div', 'row'), left = el('div', 'izq');
+    var card = el('button', 'fila item'), row = el('div', 'row'), left = el('div', 'izq');
     left.appendChild(el('div', 'name', s.razon_social));
     var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', nc));
     if (s.categoria) left.appendChild(el('div', 'sub', 'Categoría: ' + s.categoria));
@@ -239,7 +250,7 @@
     if (!filtrada.length) { dl.appendChild(el('div', 'msg', 'Sin desafiliaciones en este periodo.')); return; }
     var lim = +(dl.dataset.lim || 50);
     filtrada.slice(0, lim).forEach(function (d) {
-      var row = el('button', 'drow item'); row.style.border = '0'; row.style.borderBottom = '1px solid var(--bd)'; row.style.background = 'none';
+      var row = el('button', 'drow item');
       var left = el('div');
       left.appendChild(el('div', 'name', d.razon_social));
       var nc = nombreCom(d); if (nc) left.appendChild(el('div', 'sub', nc));
@@ -317,7 +328,7 @@
     var res = datos.filter(function (s) { return pasa(s) && (!q || norm(s.razon_social + ' ' + (s.nombre_comercial || '')).indexOf(q) >= 0); });
     $('count').textContent = res.length + ' resultado(s)';
     res.slice(0, 100).forEach(function (s) {
-      var card = el('button', 'card item'), row = el('div', 'row'), left = el('div');
+      var card = el('button', 'fila item'), row = el('div', 'row'), left = el('div');
       left.appendChild(el('div', 'name', s.razon_social));
       var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', nc));
       if (s.categoria) left.appendChild(el('div', 'sub', 'Categoría: ' + s.categoria));
@@ -353,17 +364,24 @@
     var d = $('det'); d.textContent = '';
     if (!s) { d.appendChild(el('div', 'msg', 'No se encontró la información de este socio.')); mostrar('det', true); return; }
 
-    var head = el('div', 'card'), row = el('div', 'row'), left = el('div');
-    left.appendChild(el('div', 'name', s.razon_social));
-    var nc = nombreCom(s); if (nc) left.appendChild(el('div', 'sub', 'Nombre comercial: ' + nc));
-    left.appendChild(el('div', 'sub', 'Categoría actual: ' + (s.categoria || 'Sin categoría registrada')));
-    var lad = lineaAfil(s); if (lad) left.appendChild(el('div', 'fechaafil', lad));
-    var lfd = lineaFecha(s); if (lfd) left.appendChild(el('div', 'fechaclave', lfd));
-    row.appendChild(left); row.appendChild(badge(s.estado_socio)); head.appendChild(row); d.appendChild(head);
+    var head = el('div', 'ficha-cab');
+    head.appendChild(el('div', 'nom', s.razon_social));
+    var nc = nombreCom(s); if (nc) head.appendChild(el('div', 'sub', 'Nombre comercial: ' + nc));
+    head.appendChild(badge(s.estado_socio)); d.appendChild(head);
+    // Datos clave como filas etiqueta / valor ("Fecha de afiliación: 30/11/2021" → dos columnas)
+    var dl = el('dl', 'datos');
+    function dato(txt, clave) {
+      var i = txt.indexOf(': '), r = el('div', 'dato' + (clave ? ' clave' : ''));
+      r.appendChild(el('dt', null, txt.slice(0, i))); r.appendChild(el('dd', null, txt.slice(i + 2))); dl.appendChild(r);
+    }
+    dato('Categoría actual: ' + (s.categoria || 'Sin categoría registrada'));
+    var lad = lineaAfil(s); if (lad) dato(lad);
+    var lfd = lineaFecha(s); if (lfd) dato(lfd, true);
+    d.appendChild(dl);
 
     d.appendChild(el('h2', null, 'Facturas pendientes'));
-    var f = el('div', 'card');
-    if (!s.facturas_pendientes) { f.appendChild(el('div', null, 'Sin facturas pendientes')); }
+    var f = el('div', 'hoja');
+    if (!s.facturas_pendientes) { f.appendChild(el('div', 'msg', 'Sin facturas pendientes')); }
     else {
       f.appendChild(el('div', 'name', s.facturas_pendientes + (s.facturas_pendientes === 1 ? ' factura pendiente' : ' facturas pendientes')));
       (s.facturas || []).forEach(function (x) {
@@ -379,7 +397,7 @@
     d.appendChild(f);
 
     var btn = el('button', 'ctbtn'); btn.appendChild(el('span', null, 'Contactos')); var flecha = el('span', 'sub', '›'); btn.appendChild(flecha);
-    var box = el('div', 'card hidden');
+    var box = el('div', 'hoja hidden');
     btn.onclick = async function () {
       var abierto = !box.classList.contains('hidden');
       box.classList.toggle('hidden', abierto); flecha.textContent = abierto ? '›' : '⌄';
