@@ -230,7 +230,7 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
   :focus-visible{outline-color:var(--acento)}
   header{background:var(--marino)}
   .banda{background:var(--marino);margin:-16px calc(50% - 50vw) 16px;padding:2px calc(50vw - 50%) 16px}
-  header,.banda,.pulso,.bienvenida{--tx:#fff;--mut:#a9bbd1;--bd:rgba(255,255,255,.1);--ok:#96f862;--warn:#ffc65c;--bad:#ff7b6b;--dir:#b9a3ff;--gray:#8fa3bb;color:#fff}
+  header,.banda,.bienvenida{--tx:#fff;--mut:#a9bbd1;--bd:rgba(255,255,255,.1);--ok:#96f862;--warn:#ffc65c;--bad:#ff7b6b;--dir:#b9a3ff;--gray:#8fa3bb;color:#fff}
   .menu{--tx:#0b2545;--mut:#55677e;--bd:#dde5ef;--bad:#d2412f;color:var(--tx);background:#fff;border-color:var(--linea);box-shadow:0 16px 40px rgba(11,37,69,.2)}
   .menu button:hover{background:#f2f5fa}
   .card,.hoja,.datos,.baja-res,.ctbtn{background:#fff;border-color:var(--linea);box-shadow:0 1px 2px rgba(11,37,69,.05),0 10px 26px -14px rgba(11,37,69,.22)}
@@ -248,7 +248,13 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
   .chip.on{background:var(--lima);border-color:#7fe04a;color:var(--marino)}
   .badge::before{box-shadow:none}
   .nodo{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 20%,transparent)}
-  .pulso .nodo{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent),0 0 10px color-mix(in srgb,currentColor 55%,transparent)}
+  /* Bloque de afiliados en blanco, como las demás tarjetas */
+  .pulso{border-color:var(--linea);box-shadow:0 1px 2px rgba(11,37,69,.05),0 10px 26px -14px rgba(11,37,69,.22);
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 160' fill='none'%3E%3Cg stroke='%232c8f1c' stroke-opacity='.28' stroke-width='1'%3E%3Cpath d='M40 40 110 18 190 52 150 110 70 96Z'/%3E%3Cpath d='M110 18 150 110M70 96 190 52'/%3E%3C/g%3E%3Cg fill='%2364c93a'%3E%3Ccircle cx='40' cy='40' r='3'/%3E%3Ccircle cx='110' cy='18' r='4'/%3E%3Ccircle cx='190' cy='52' r='3.5'/%3E%3Ccircle cx='150' cy='110' r='3'/%3E%3Ccircle cx='70' cy='96' r='2.5'/%3E%3C/g%3E%3Cg fill='%2396f862' fill-opacity='.3'%3E%3Ccircle cx='110' cy='18' r='11'/%3E%3Ccircle cx='190' cy='52' r='9'/%3E%3C/g%3E%3C/svg%3E") no-repeat right -34px top -26px/190px auto,radial-gradient(90% 70% at 100% 0%,rgba(150,248,98,.14) 0,transparent 60%),#fff}
+  .pulso .pildora{border-color:var(--acento);color:var(--acento)}
+  .pulso .pildora::before{background:var(--acento);box-shadow:none}
+  .cifra{color:var(--acento);text-shadow:none}
+  .pulso-top .et{color:var(--marino)}
   .dato.clave dd,#nAlta,.mrow.on{color:var(--acento)}
   .acts a{border-color:var(--acento);color:var(--acento)}
   .acts a:first-child{background:var(--lima);border-color:var(--lima);color:var(--marino)}
