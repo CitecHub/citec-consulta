@@ -424,7 +424,11 @@
         if (n.scrollWidth > n.clientWidth + 1 && (n.tagName === 'INPUT' || /auto|scroll/.test(getComputedStyle(n).overflowX))) return n;
       return null;
     }
-    function progresoTabs(p) { var t = $('tabs'); if (p === null) { t.classList.remove('arrastra'); t.style.removeProperty('--p'); } else { t.classList.add('arrastra'); t.style.setProperty('--p', p); } }
+    function progresoTabs(p) {
+      var t = $('tabs'), enBus = p === null ? vista === 'bus' : p >= 0.5;
+      if (p === null) { t.classList.remove('arrastra'); t.style.removeProperty('--p'); } else { t.classList.add('arrastra'); t.style.setProperty('--p', p); }
+      if (vista === 'res' || vista === 'bus') { $('tabRes').classList.toggle('on', !enBus); $('tabBus').classList.toggle('on', enBus); } // el texto cambia de color al cruzar la mitad
+    }
     document.addEventListener('touchstart', function (e) {
       g = null;
       if (e.touches.length !== 1 || $('app').classList.contains('hidden') || !$('menu').classList.contains('hidden') || trans) return;
