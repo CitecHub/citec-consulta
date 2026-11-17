@@ -15,7 +15,14 @@
   function norm(s) { return (s || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
   function fecha(d) { var p = (d || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : (d || ''); }
   function mesLabel(k) { var p = k.split('-'); var s = new Date(+p[0], +p[1] - 1, 1).toLocaleDateString('es-EC', { month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
-  function msg(t, err) { var m = $('loginmsg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
+  function msg(t, err) {
+    var m = $('loginmsg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : '');
+    if (err && !reducir && m.animate) m.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(0)' }], { duration: 320, easing: 'ease-out' });
+  }
+  // Botón en espera: muestra un indicador de carga y evita toques repetidos mientras responde el servidor
+  function ocupar(b, si) { b.classList.toggle('carga', si); b.disabled = si; }
+  var reducir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var SALE = 'cubic-bezier(.2,.8,.2,1)';
   var ESTADOS_BADGE = ['Activo', 'Suspendido', 'Desafiliado', 'En revisión', 'Atención directiva'];
   function badge(estado) { var cls = 'b-' + (ESTADOS_BADGE.indexOf(estado) >= 0 ? estado.replace(/ /g, '-') : 'otro'); return el('span', 'badge ' + cls, estado); }
   // Fecha clave del socio: próxima renovación (afiliados) o fecha de desafiliación (desafiliados)
@@ -41,23 +48,28 @@
   $('enviar').onclick = async function () {
     correo = $('email').value.trim().toLowerCase();
     if (!correo.endsWith(DOMINIO)) { msg('Usa tu correo ' + DOMINIO, true); return; }
-    msg('Enviando…');
+    msg('Enviando…'); ocupar($('enviar'), true);
     var r = await sb.auth.signInWithOtp({ email: correo, options: { shouldCreateUser: true } });
+    ocupar($('enviar'), false);
     if (r.error) { msg('No se pudo enviar el código. Intenta de nuevo en un minuto.', true); return; }
     $('paso1').classList.add('hidden'); $('paso2').classList.remove('hidden');
+    if (!reducir && $('paso2').animate) $('paso2').animate([{ opacity: 0, transform: 'translateX(28px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: SALE });
+    try { $('codigo').focus(); } catch (e) {}
     msg('Revisa tu correo e ingresa el código.');
   };
   $('verificar').onclick = async function () {
     var token = $('codigo').value.trim(); if (!token) return;
-    msg('Verificando…');
+    msg('Verificando…'); ocupar($('verificar'), true);
     var r = await sb.auth.verifyOtp({ email: correo, token: token, type: 'email' });
+    ocupar($('verificar'), false);
     if (r.error) { msg('Código incorrecto o vencido.', true); return; }
     iniciar();
   };
   $('salir').onclick = async function () {
     cerrarMenu();
-    await sb.auth.signOut({ scope: 'local' }); datos = []; resumen = null; cacheCt = {}; dashMes = null;
+    await sb.auth.signOut({ scope: 'local' }); datos = []; resumen = null; cacheCt = {}; dashMes = null; graf = null; ventanaPrev = '';
     ['kpis', 'lista', 'det', 'desLista', 'desMeses', 'movLista', 'pie'].forEach(function (i) { $(i).textContent = ''; });
+    if (vista !== 'res') mostrar('res'); // al volver a entrar, la app abre en el Resumen
     vistaLogin(); $('paso1').classList.remove('hidden'); $('paso2').classList.add('hidden'); $('codigo').value = ''; msg('');
   };
 
@@ -65,22 +77,45 @@
   // Orden de las vistas para saber hacia dónde va la animación al cambiar de pantalla
   var NIVEL = { res: 0, bus: 1, des: 2, mov: 2, det: 3 };
   var VISTA_ID = { res: 'vRes', bus: 'vBus', des: 'vDes', mov: 'vMov', det: 'vDet' };
-  function mostrar(v, push) {
+  // Cambio animado: lo que sale se desvanece hacia un lado y lo que entra llega desde el otro.
+  // Si el dedo ya venía arrastrando la pantalla, la salida continúa desde donde quedó el dedo.
+  var trans = null, arrN = null, arrX = 0;
+  function soltarArrastre() { if (arrN) { arrN.style.transform = arrN.style.opacity = arrN.style.willChange = ''; arrN = null; } arrX = 0; }
+  function cambiar(sale, dir, swap, entra) {
+    if (trans) { var t = trans; trans = null; t.a.cancel(); t.swap(); } // un cambio a medias se completa de inmediato
+    var x0 = arrN === sale ? arrX : 0; soltarArrastre();
+    if (reducir || !dir || !sale || !sale.animate) { swap(); return; }
+    var a = sale.animate([{ transform: 'translateX(' + x0 + 'px)', opacity: 1 - Math.min(Math.abs(x0) / window.innerWidth, 1) * 0.45 },
+      { transform: 'translateX(' + (x0 - dir * 40) + 'px)', opacity: 0 }], { duration: x0 ? 110 : 130, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+    trans = { a: a, swap: swap };
+    a.onfinish = function () {
+      if (!trans || trans.a !== a) return;
+      trans = null; swap(); a.cancel();
+      var n = entra();
+      if (n && n.animate) n.animate([{ transform: 'translateX(' + dir * 36 + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: SALE });
+    };
+  }
+  var scrollDe = {}; // posición de lectura de cada pantalla, para volver al mismo punto
+  function mostrar(v, push, luego) {
     if (v === 'det' && vista !== 'det') vistaPrevia = vista;
-    var dir = NIVEL[v] > NIVEL[vista] ? 1 : NIVEL[v] < NIVEL[vista] ? -1 : 0;
+    var antes = vista, dir = NIVEL[v] > NIVEL[antes] ? 1 : NIVEL[v] < NIVEL[antes] ? -1 : 0;
+    scrollDe[antes] = window.scrollY;
     vista = v;
-    if (dir) animar(VISTA_ID[v], dir);
-    $('vRes').classList.toggle('hidden', v !== 'res');
-    $('vBus').classList.toggle('hidden', v !== 'bus');
-    $('vDes').classList.toggle('hidden', v !== 'des');
-    $('vMov').classList.toggle('hidden', v !== 'mov');
-    $('vDet').classList.toggle('hidden', v !== 'det');
-    $('banda').classList.toggle('hidden', v === 'des' || v === 'det' || v === 'mov');
     $('tabRes').classList.toggle('on', v === 'res');
     $('tabBus').classList.toggle('on', v === 'bus');
-    $('tabs').classList.toggle('en-bus', v === 'bus'); // mueve el resaltado de la pestaña
+    if (v === 'res' || v === 'bus') $('tabs').classList.toggle('en-bus', v === 'bus'); // mueve el resaltado de la pestaña
     if (push) { try { history.pushState({ v: v }, ''); } catch (e) {} }
-    window.scrollTo(0, 0);
+    cambiar($(VISTA_ID[antes]), dir, function () {
+      $('vRes').classList.toggle('hidden', v !== 'res');
+      $('vBus').classList.toggle('hidden', v !== 'bus');
+      $('vDes').classList.toggle('hidden', v !== 'des');
+      $('vMov').classList.toggle('hidden', v !== 'mov');
+      $('vDet').classList.toggle('hidden', v !== 'det');
+      $('banda').classList.toggle('hidden', v === 'des' || v === 'det' || v === 'mov');
+      window.scrollTo(0, dir < 0 ? (scrollDe[v] || 0) : 0);
+      if (v === 'bus') posChip(false);
+      if (luego) luego();
+    }, function () { return $(VISTA_ID[v]); });
   }
   window.addEventListener('popstate', function () {
     if (vista === 'det') { mostrar(vistaPrevia === 'det' ? 'bus' : vistaPrevia); }
@@ -98,14 +133,25 @@
   // ---------- transiciones de entrada ----------
   // La primera vez que se pinta el Resumen, sus bloques aparecen en secuencia y las cifras cuentan
   // hacia arriba; ocurre al cerrarse la bienvenida para que se vea.
-  var reducir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var yaRevelado = false, trasBien = [];
-  function trasBienvenida(fn) { if ($('bienvenida').classList.contains('hidden')) fn(); else trasBien.push(fn); }
-  function contar(n, hasta) {
-    if (reducir) { n.textContent = hasta; return; }
-    var t0 = null, dur = 900;
-    (function paso(t) { if (!t0) t0 = t; var x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 3);
-      n.textContent = Math.round(hasta * e); if (x < 1) requestAnimationFrame(paso); })(performance.now());
+  var yaRevelado = false, trasBien = [], bienFuera = true;
+  function trasBienvenida(fn) { if (bienFuera) fn(); else trasBien.push(fn); }
+  // Cuenta de un número a otro; si llega un valor nuevo a mitad de camino, la cuenta anterior se abandona
+  function contarDe(n, de, hasta, dur, fmt) {
+    fmt = fmt || String; var id = n._cta = (n._cta || 0) + 1;
+    if (reducir || de === hasta) { n.textContent = fmt(hasta); return; }
+    var t0 = null;
+    requestAnimationFrame(function paso(t) {
+      if (n._cta !== id) return;
+      if (!t0) t0 = t; var x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 3);
+      n.textContent = fmt(Math.round(de + (hasta - de) * e)); if (x < 1) requestAnimationFrame(paso);
+    });
+  }
+  function contar(n, hasta) { contarDe(n, 0, hasta, 900); }
+  // Cifra que cambia con el mes elegido: pasa de su valor anterior al nuevo
+  function cifraViva(n, hasta, fmt) {
+    var de = n.dataset.v; n.dataset.v = hasta;
+    if (de === undefined) { n.textContent = (fmt || String)(hasta); return; }
+    contarDe(n, +de, hasta, 420, fmt);
   }
   function cifras(scope, animar) {
     scope.querySelectorAll('[data-n]').forEach(function (n) { var v = +n.dataset.n; if (animar) { n.textContent = '0'; contar(n, v); } else n.textContent = v; });
@@ -163,8 +209,8 @@
     var idx = meses24.indexOf(dashMes), prev = idx > 0 ? meses24[idx - 1] : null;
     var na = movsDe(dashMes, 'alta').length, nb = movsDe(dashMes, 'baja').length, neto = na - nb;
     var pa = prev ? movsDe(prev, 'alta').length : null, pb = prev ? movsDe(prev, 'baja').length : null;
-    $('nAlta').textContent = na; $('nBaja').textContent = nb;
-    $('nNeto').textContent = conSigno(neto);
+    cifraViva($('nAlta'), na); cifraViva($('nBaja'), nb);
+    cifraViva($('nNeto'), neto, conSigno);
     $('nNeto').style.color = !neto ? 'var(--tx)' : neto > 0 ? 'var(--ok)' : 'var(--bad)';
     var ant = prev ? ' vs ' + mesCorto(prev) : '';
     $('pAlta').textContent = prev ? conSigno(na - pa) + ant : '';
@@ -172,11 +218,12 @@
     $('dNeto').textContent = prev ? (pa - pb) + ' en ' + mesCorto(prev) : '';
     $('movAlta').onclick = function () { abrirMov('alta'); };
     $('movBaja').onclick = function () { abrirMov('baja'); };
-    var tot = na + nb, ver = $('veredicto');
+    var tot = na + nb, ver = $('veredicto'), verAntes = ver.textContent;
     ver.textContent = !tot ? 'Sin movimientos en ' + mesLabel(dashMes).toLowerCase()
       : neto > 0 ? 'Más socios nuevos que desafiliados en ' + mesLabel(dashMes).toLowerCase()
       : neto < 0 ? 'Más desafiliados que socios nuevos en ' + mesLabel(dashMes).toLowerCase()
       : 'Igual número de socios nuevos y desafiliados en ' + mesLabel(dashMes).toLowerCase();
+    if (verAntes && verAntes !== ver.textContent && !reducir && ver.animate) ver.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
     // Últimos 12 meses; si el mes elegido es más antiguo, la ventana termina en ese mes
     var fin = idx >= 12 ? 23 : Math.max(idx, 11), ventana = meses24.slice(fin - 11, fin + 1);
     var anim = ventana.join() !== ventanaPrev; ventanaPrev = ventana.join();
@@ -185,34 +232,45 @@
   // Barras divergentes: socios nuevos hacia arriba, desafiliados hacia abajo; el mes elegido resalta
   var NS = 'http://www.w3.org/2000/svg';
   function svgEl(t, at) { var e = document.createElementNS(NS, t); for (var k in at) e.setAttribute(k, at[k]); return e; }
+  // El gráfico se dibuja una vez por periodo; al elegir otro mes solo se mueve el foco y cambia el resaltado.
+  var graf = null;
   function pintarBarras(meses, anim) {
+    var vals = meses.map(function (m) { return [movsDe(m, 'alta').length, movsDe(m, 'baja').length]; });
+    var clave = meses.join() + '|' + vals.join();
+    if (!anim && graf && graf.clave === clave) { resaltarMes(meses); return; }
     var box = $('pie'); box.textContent = '';
     var W = 340, H = 196, top = 22, bot = 26, gw = W / meses.length, bw = Math.min(14, gw * 0.5);
-    var vals = meses.map(function (m) { return [movsDe(m, 'alta').length, movsDe(m, 'baja').length]; });
     var maxA = Math.max.apply(null, vals.map(function (v) { return v[0]; }).concat([1]));
     var maxB = Math.max.apply(null, vals.map(function (v) { return v[1]; }).concat([1]));
     var u = (H - top - bot) / (maxA + maxB), y0 = top + maxA * u;
     var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'class': anim && !reducir ? 'crece' : '',
       'aria-label': 'Últimos 12 meses: ' + meses.map(function (m, i) { return mesLabel(m) + ' ' + vals[i][0] + ' nuevos y ' + vals[i][1] + ' desafiliados'; }).join('; ') });
-    meses.forEach(function (m, i) {
-      var x = i * gw, cx = x + gw / 2, on = m === dashMes, a = vals[i][0], b = vals[i][1];
-      var g = svgEl('g', { 'class': 'grp' + (on ? ' on' : '') });
+    var foco = svgEl('rect', { x: 2, y: 4, width: gw - 4, height: H - 8, rx: 8, 'class': 'foco' });
+    svg.appendChild(foco);
+    var gs = meses.map(function (m, i) {
+      var x = i * gw, cx = x + gw / 2, a = vals[i][0], b = vals[i][1];
+      var g = svgEl('g', { 'class': 'grp' });
       g.style.setProperty('--d', (i * 35) + 'ms');
-      if (on) g.appendChild(svgEl('rect', { x: x + 2, y: 4, width: gw - 4, height: H - 8, rx: 8, 'class': 'foco' }));
       if (a) g.appendChild(svgEl('rect', { x: cx - bw / 2, y: y0 - a * u, width: bw, height: a * u, rx: Math.min(4, a * u / 2), 'class': 'ba' }));
       if (b) g.appendChild(svgEl('rect', { x: cx - bw / 2, y: y0, width: bw, height: b * u, rx: Math.min(4, b * u / 2), 'class': 'bb' }));
-      if (on) {
-        if (a) { var ta = svgEl('text', { x: cx, y: y0 - a * u - 5, 'text-anchor': 'middle', 'class': 'va' }); ta.textContent = a; g.appendChild(ta); }
-        if (b) { var tb = svgEl('text', { x: cx, y: y0 + b * u + 12, 'text-anchor': 'middle', 'class': 'vb' }); tb.textContent = b; g.appendChild(tb); }
-      }
+      if (a) { var ta = svgEl('text', { x: cx, y: y0 - a * u - 5, 'text-anchor': 'middle', 'class': 'va' }); ta.textContent = a; g.appendChild(ta); }
+      if (b) { var tb = svgEl('text', { x: cx, y: y0 + b * u + 12, 'text-anchor': 'middle', 'class': 'vb' }); tb.textContent = b; g.appendChild(tb); }
       var tm = svgEl('text', { x: cx, y: H - 8, 'text-anchor': 'middle', 'class': 'mes' }); tm.textContent = mesCorto(m); g.appendChild(tm);
       var hit = svgEl('rect', { x: x, y: 0, width: gw, height: H, fill: 'transparent' }); g.appendChild(hit);
       var tt = svgEl('title', {}); tt.textContent = mesLabel(m) + ': ' + a + ' socios nuevos, ' + b + ' desafiliados'; g.appendChild(tt);
       g.addEventListener('click', function () { dashMes = m; pintarDash(); });
       svg.appendChild(g);
+      return g;
     });
     svg.appendChild(svgEl('line', { x1: 0, x2: W, y1: y0, y2: y0, 'class': 'eje' }));
     box.appendChild(svg);
+    graf = { clave: clave, gs: gs, foco: foco, gw: gw };
+    resaltarMes(meses);
+  }
+  function resaltarMes(meses) {
+    var i = meses.indexOf(dashMes);
+    graf.gs.forEach(function (g, k) { g.classList.toggle('on', k === i); });
+    graf.foco.style.transform = 'translateX(' + (i * graf.gw) + 'px)';
   }
   function abrirMov(tipo, push) {
     movTipo = tipo;
@@ -246,7 +304,13 @@
 
   // ---------- desafiliados ----------
   // Por defecto se ve el año en curso; el histórico completo queda en el filtro "Todo el histórico".
-  function abrirDesafiliados() { desMes = 'anio'; pintarDesaf(); mostrar('des', true); }
+  function abrirDesafiliados() {
+    desMes = 'anio'; pintarDesaf();
+    mostrar('des', true, function () {
+      var box = $('desMeses'); box.classList.add('crece'); setTimeout(function () { box.classList.remove('crece'); }, 1300);
+      contarDe($('desTotal'), 0, resumen.desafiliados_anio, 700);
+    });
+  }
   function pintarDesaf() {
     var lista = (resumen && resumen.desafiliados) || [];
     var anio = String(new Date().getFullYear());
@@ -268,8 +332,8 @@
     var box = $('desMeses'); box.textContent = '';
     var max = Math.max.apply(null, meses.map(function (m) { return porMes[m]; }).concat([1]));
     var mostrarMeses = box.dataset.todos === '1' ? meses : meses.slice(0, 12);
-    mostrarMeses.forEach(function (m) {
-      var b = el('button', 'mrow' + (m === desMes ? ' on' : ''));
+    mostrarMeses.forEach(function (m, i) {
+      var b = el('button', 'mrow' + (m === desMes ? ' on' : '')); b.style.setProperty('--i', Math.min(i, 12));
       var left = el('div'); left.style.flex = '1';
       left.appendChild(el('div', null, mesLabel(m)));
       var bar = el('div', 'bar'); bar.style.width = Math.max(4, Math.round(porMes[m] / max * 100)) + '%'; left.appendChild(bar);
@@ -305,54 +369,106 @@
   var CHIPS = ['Todos', 'Afiliados', 'Activo', 'En revisión', 'Suspendido', 'Atención directiva', 'Desafiliado'];
   var ACTIVOS = ['Activo', 'En revisión', 'Suspendido', 'Atención directiva'];
   function pintarChips() {
-    var c = $('chips'); c.textContent = '';
-    var lista = CHIPS.slice();
-    lista.forEach(function (e) {
-      var b = el('button', 'chip' + (e === filtro ? ' on' : ''), e);
-      b.onclick = function () {
-        var dir = CHIPS.indexOf(e) - CHIPS.indexOf(filtro); if (!dir) return;
-        filtro = e; pintarChips(); pintar(); animar('lista', dir);
-      };
-      c.appendChild(b);
-      if (e === filtro) setTimeout(function () { try { c.scrollTo({ left: b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2, behavior: 'smooth' }); } catch (x) { c.scrollLeft = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2; } }, 0);
-    });
+    var c = $('chips');
+    if (!c.firstChild) {
+      c.appendChild(el('i', 'chip-ind'));
+      CHIPS.forEach(function (e) { var b = el('button', 'chip', e); b.dataset.f = e; b.onclick = function () { elegirFiltro(e, false); }; c.appendChild(b); });
+    }
+    [].forEach.call(c.querySelectorAll('.chip'), function (b) { var on = b.dataset.f === filtro; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    posChip(true);
+  }
+  // Coloca el resaltado sobre el filtro elegido y lo centra en la fila
+  function posChip(suave) {
+    var c = $('chips'), ind = c.firstChild, b = c.querySelector('.chip.on');
+    if (!ind || !b || !b.offsetWidth) { c.classList.remove('listo'); return; } // la fila aún no es visible
+    var quieto = !suave || reducir || !c.classList.contains('listo');
+    if (quieto) ind.style.transition = 'none';
+    ind.style.width = b.offsetWidth + 'px'; ind.style.height = b.offsetHeight + 'px';
+    ind.style.transform = 'translate(' + b.offsetLeft + 'px,' + b.offsetTop + 'px)';
+    c.classList.add('listo');
+    if (quieto) { void ind.offsetWidth; ind.style.transition = ''; }
+    var izq = b.offsetLeft - (c.clientWidth - b.offsetWidth) / 2;
+    try { c.scrollTo({ left: izq, behavior: quieto ? 'auto' : 'smooth' }); } catch (x) { c.scrollLeft = izq; }
+  }
+  window.addEventListener('resize', function () { posChip(false); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { posChip(false); });
+  function elegirFiltro(e, subir) {
+    var d = CHIPS.indexOf(e) - CHIPS.indexOf(filtro); if (!d) return;
+    filtro = e; pintarChips();
+    cambiar($('lista'), d > 0 ? 1 : -1, function () { pintar(); if (subir) window.scrollTo(0, 0); }, function () { return $('lista'); });
   }
   // ---------- deslizar con el dedo (en cualquier parte de la pantalla) ----------
   // Resumen ⇄ Buscar socio, y en Buscar socio: Todos ⇄ Afiliados ⇄ … ⇄ Desafiliado.
   // Desde "Todos", deslizar hacia la derecha regresa al Resumen.
   // En la ficha, desafiliados y listado del mes, deslizar hacia la derecha equivale a "Volver".
-  function animar(id, dir) {
-    var n = $(id); n.classList.remove('desl-izq', 'desl-der'); void n.offsetWidth;
-    n.classList.add(dir > 0 ? 'desl-izq' : 'desl-der');
+  // La pantalla acompaña al dedo mientras se desliza; al soltar, completa el cambio o regresa a su lugar.
+  function destino(dir) { // qué se movería con este gesto: toda la pantalla, solo la lista, o nada
+    if (vista === 'det' || vista === 'des' || vista === 'mov') return dir < 0 ? 'vista' : null;
+    if (vista === 'res') return dir > 0 ? 'vista' : null;
+    var j = CHIPS.indexOf(filtro) + dir;
+    return j < 0 ? 'vista' : j >= CHIPS.length ? null : 'lista';
   }
   function deslizar(dir) { // dir = +1 siguiente (dedo hacia la izquierda), -1 anterior
     if (vista === 'det' || vista === 'des' || vista === 'mov') { if (dir < 0) atras(); return; }
     if (vista === 'res') { if (dir > 0) mostrar('bus'); return; }
-    var i = CHIPS.indexOf(filtro), j = i + dir;
+    var j = CHIPS.indexOf(filtro) + dir;
     if (j < 0) { mostrar('res'); return; }
     if (j >= CHIPS.length) return;
-    filtro = CHIPS[j]; pintarChips(); pintar(); animar('lista', dir); window.scrollTo(0, 0);
+    elegirFiltro(CHIPS[j], true);
   }
   (function () {
-    var x0 = null, y0 = 0, t0 = 0, scr = null, scrL = 0;
+    var g = null;
     // Elemento con desplazamiento horizontal propio (p. ej. la fila de filtros o un texto largo en el buscador)
     function desplazableH(n) {
-      for (; n && n !== document.body && n.nodeType === 1; n = n.parentNode) if (n.scrollWidth > n.clientWidth + 1) return n;
+      for (; n && n !== document.body && n.nodeType === 1; n = n.parentNode)
+        if (n.scrollWidth > n.clientWidth + 1 && (n.tagName === 'INPUT' || /auto|scroll/.test(getComputedStyle(n).overflowX))) return n;
       return null;
     }
+    function progresoTabs(p) { var t = $('tabs'); if (p === null) { t.classList.remove('arrastra'); t.style.removeProperty('--p'); } else { t.classList.add('arrastra'); t.style.setProperty('--p', p); } }
     document.addEventListener('touchstart', function (e) {
-      x0 = null;
-      if (e.touches.length !== 1 || $('app').classList.contains('hidden') || !$('menu').classList.contains('hidden')) return;
-      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
-      scr = desplazableH(e.target); scrL = scr ? scr.scrollLeft : 0;
+      g = null;
+      if (e.touches.length !== 1 || $('app').classList.contains('hidden') || !$('menu').classList.contains('hidden') || trans) return;
+      var scr = desplazableH(e.target);
+      g = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), scr: scr, scrL: scr ? scr.scrollLeft : 0, modo: null, n: null, dx: 0 };
     }, { passive: true });
-    document.addEventListener('touchcancel', function () { x0 = null; }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      if (!g || reducir || g.scr) return;
+      var dx = e.touches[0].clientX - g.x, dy = e.touches[0].clientY - g.y;
+      if (!g.modo) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; g.modo = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'h' : 'v'; }
+      if (g.modo !== 'h') return;
+      var dir = dx < 0 ? 1 : -1, d = destino(dir), n = d === 'lista' ? $('lista') : $(VISTA_ID[vista]);
+      if (g.n && g.n !== n) g.n.style.transform = g.n.style.opacity = g.n.style.willChange = '';
+      g.n = n; g.dx = d ? dx : dx * 0.22; // sin destino, la pantalla cede un poco y se resiste
+      n.style.willChange = 'transform,opacity';
+      n.style.transform = 'translateX(' + g.dx + 'px)';
+      n.style.opacity = d ? 1 - Math.min(Math.abs(dx) / window.innerWidth, 1) * 0.45 : 1;
+      if (d === 'vista' && (vista === 'res' || vista === 'bus')) { var p = Math.min(1, Math.abs(dx) / (window.innerWidth * 0.6)); progresoTabs(vista === 'res' ? p : 1 - p); }
+      else progresoTabs(null);
+    }, { passive: true });
+    document.addEventListener('touchcancel', function () {
+      if (g && g.n) g.n.style.transform = g.n.style.opacity = g.n.style.willChange = '';
+      progresoTabs(null); g = null;
+    }, { passive: true });
     document.addEventListener('touchend', function (e) {
-      if (x0 === null) return;
-      var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2 || Date.now() - t0 > 1000) return; // no es un deslizamiento horizontal
+      if (!g) return;
+      var G = g, t = e.changedTouches[0], dx = t.clientX - G.x, dy = t.clientY - G.y, dt = Math.max(1, Date.now() - G.t); g = null;
+      if (G.modo === 'h' && G.n) {
+        var dir = dx < 0 ? 1 : -1, n = G.n, x = G.dx;
+        progresoTabs(null);
+        if (destino(dir) && (Math.abs(dx) > 64 || (Math.abs(dx) > 24 && Math.abs(dx) / dt > 0.5))) {
+          arrN = n; arrX = x; deslizar(dir);
+          setTimeout(function () { if (arrN === n) soltarArrastre(); }, 600); // por si el cambio no llega a ocurrir
+        } else {
+          var op = n.style.opacity || 1; n.style.transform = n.style.opacity = n.style.willChange = '';
+          if (n.animate) n.animate([{ transform: 'translateX(' + x + 'px)', opacity: op }, { transform: 'none', opacity: 1 }], { duration: 280, easing: SALE });
+        }
+        return;
+      }
+      if (G.modo) return; // fue un desplazamiento vertical
+      // Sin seguimiento del dedo (movimiento reducido, o el gesto empezó sobre la fila de filtros)
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2 || dt > 1000) return; // no es un deslizamiento horizontal
       // Si el dedo movió la fila de filtros (o el texto del buscador), ese gesto era para desplazarla, no para cambiar de pantalla
-      if (scr && Math.abs(scr.scrollLeft - scrL) > 2) return;
+      if (G.scr && Math.abs(G.scr.scrollLeft - G.scrL) > 2) return;
       deslizar(dx < 0 ? 1 : -1);
     }, { passive: true });
   })();
@@ -436,11 +552,14 @@
     }
     d.appendChild(f);
 
-    var btn = el('button', 'ctbtn'); btn.appendChild(el('span', null, 'Contactos')); var flecha = el('span', 'sub', '›'); btn.appendChild(flecha);
-    var box = el('div', 'hoja hidden');
+    var btn = el('button', 'ctbtn'); btn.appendChild(el('span', null, 'Contactos')); btn.appendChild(el('span', 'sub flecha', '›'));
+    btn.setAttribute('aria-expanded', 'false');
+    // El bloque de contactos se despliega con suavidad (acordeón) en lugar de aparecer de golpe
+    var ac = el('div', 'acord'), acIn = el('div'), box = el('div', 'hoja'); acIn.appendChild(box); ac.appendChild(acIn);
+    function aparece() { if (!reducir && box.animate) box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' }); }
     btn.onclick = async function () {
-      var abierto = !box.classList.contains('hidden');
-      box.classList.toggle('hidden', abierto); flecha.textContent = abierto ? '›' : '⌄';
+      var abierto = ac.classList.contains('abierto');
+      ac.classList.toggle('abierto', !abierto); btn.classList.toggle('abierto', !abierto); btn.setAttribute('aria-expanded', abierto ? 'false' : 'true');
       if (abierto || box.dataset.ok) return;
       box.textContent = 'Cargando contactos…';
       var c = cacheCt[id];
@@ -450,21 +569,27 @@
         c = cacheCt[id] = r.data;
       }
       if (detId !== id) return;
-      box.textContent = ''; box.dataset.ok = '1';
+      box.textContent = ''; box.dataset.ok = '1'; aparece();
       if (!c) { box.appendChild(el('div', 'sub', 'Este socio no tiene ficha en Monday.')); return; }
       bloqueContacto(box, 'Gerente general / CEO', c.gerente);
       bloqueContacto(box, 'Contacto contable', c.contable);
       bloqueContacto(box, 'Contacto financiero', c.financiero);
     };
-    d.appendChild(btn); d.appendChild(box);
+    d.appendChild(btn); d.appendChild(ac);
+    [].forEach.call(d.children, function (n, i) { n.style.setProperty('--i', i); });
+    d.classList.add('entra'); setTimeout(function () { d.classList.remove('entra'); }, 1200);
     mostrar('det', true);
   }
 
   // ---------- carga ----------
   async function cargar() {
+    if (!resumen) $('vRes').classList.add('cargando');
+    if (!datos.length) $('vBus').classList.add('cargando');
     var rr = await sb.rpc('consulta_resumen_v2');
+    $('vRes').classList.remove('cargando');
     if (!rr.error) { resumen = rr.data; pintarResumen(); if (vista === 'des') pintarDesaf(); }
     var r = await sb.rpc('consulta_socios_v4');
+    $('vBus').classList.remove('cargando');
     if (r.error) {
       if (r.error.code === '42501' || /autoriz/i.test(r.error.message || '')) { await sb.auth.signOut({ scope: 'local' }); vistaLogin(); msg('Tu cuenta no está autorizada.', true); }
       else { $('count').textContent = 'No se pudo cargar. Revisa tu conexión.'; }
@@ -489,10 +614,12 @@
     var b = $('bienvenida'), n = nombreUsuario(u);
     $('bienNombre').textContent = n;
     $('bienTexto').textContent = n ? 'Bienvenido/a' : 'Bienvenido/a a la consulta de socios';
-    b.classList.remove('hidden', 'sale');
+    b.classList.remove('hidden', 'sale'); bienFuera = false;
     var cerrar = function () {
       if (b.classList.contains('hidden') || b.classList.contains('sale')) return;
-      b.classList.add('sale'); setTimeout(function () { b.classList.add('hidden'); b.classList.remove('sale'); trasBien.splice(0).forEach(function (f) { f(); }); }, 400);
+      b.classList.add('sale');
+      setTimeout(function () { bienFuera = true; trasBien.splice(0).forEach(function (f) { f(); }); }, 170);
+      setTimeout(function () { b.classList.add('hidden'); b.classList.remove('sale'); }, 450);
     };
     b.onclick = cerrar; setTimeout(cerrar, 2200);
   }

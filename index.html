@@ -57,14 +57,18 @@ header{background:transparent;color:#fff;padding:12px 16px 8px;display:flex;just
 .avatar{width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(150,248,98,.55);background:rgba(150,248,98,.08);color:var(--lima);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
 .avatar svg{width:19px;height:19px}
 .menu{position:absolute;right:0;top:44px;min-width:230px;background:var(--hoja-2);color:var(--tx);border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.45);padding:6px;z-index:10}
+.menu{transform-origin:calc(100% - 18px) 0;transition:opacity .18s ease,transform .24s var(--sale),visibility 0s}
+.menu.hidden{display:block!important;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-6px) scale(.94);transition:opacity .14s ease,transform .14s ease,visibility 0s .14s}
 .menu .mail{font-size:13px;color:var(--mut);padding:8px 10px 10px;border-bottom:1px solid var(--bd);margin-bottom:4px;word-break:break-all}
 .menu button{width:100%;text-align:left;background:none;border:0;color:var(--bad);font-weight:600;padding:10px;border-radius:8px;cursor:pointer}
 .menu button:hover{background:rgba(255,255,255,.06)}
 .banda{margin:-8px 0 16px}
 .tabs{display:flex;gap:4px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:99px;padding:4px;position:relative}
-.tabs::before{content:"";position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);background:var(--lima);border-radius:99px;box-shadow:0 0 18px rgba(150,248,98,.35);transition:transform .35s var(--sale)}
-.tabs.en-bus::before{transform:translateX(calc(100% + 4px))}
-.tab{flex:1;border:0;background:transparent;color:rgba(255,255,255,.8);padding:9px;border-radius:99px;font-size:15px;font-weight:700;position:relative;z-index:1;transition:color .3s ease;cursor:pointer}
+.tabs::before{content:"";position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);background:var(--lima);border-radius:99px;box-shadow:0 0 18px rgba(150,248,98,.35);transform:translateX(calc((100% + 4px) * var(--p,0)));transition:transform .42s var(--sale)}
+.tabs.en-bus{--p:1}
+.tabs.arrastra::before{transition:none}
+.tab{flex:1;border:0;background:transparent;color:rgba(255,255,255,.8);padding:9px;border-radius:99px;font-size:15px;font-weight:700;position:relative;z-index:1;transition:color .3s ease,transform .16s ease;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tab:active{transform:scale(.97)}
 .tab.on{color:var(--marino)}
 
 main{max-width:720px;margin:0 auto;padding:16px}
@@ -130,7 +134,7 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 .pie{margin-top:16px}
 .pie svg{width:100%;height:auto;display:block;overflow:visible}
 .pie .grp{cursor:pointer}
-.pie .foco{fill:rgba(150,248,98,.08);stroke:rgba(150,248,98,.28);stroke-width:1}
+.pie .foco{fill:rgba(150,248,98,.08);stroke:rgba(150,248,98,.28);stroke-width:1;transition:transform .42s var(--sale)}
 .pie .ba{fill:var(--alta);opacity:.5}.pie .bb{fill:var(--baja);opacity:.5}
 .pie .on .ba,.pie .on .bb{opacity:1}
 .pie .on .ba{filter:drop-shadow(0 0 6px rgba(150,248,98,.6))}
@@ -139,15 +143,22 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 .pie .on .mes{fill:var(--lima);font-weight:700}
 .pie .va,.pie .vb{font:800 13px var(--display);font-stretch:80%}
 .pie .va{fill:var(--alta)}.pie .vb{fill:var(--baja)}
+.pie .va,.pie .vb{opacity:0;transition:opacity .22s ease}
+.pie .on .va,.pie .on .vb{opacity:1;transition:opacity .3s .12s ease}
+.mov .v,.veredicto{transition:color .3s ease}
 .chart-ley{display:flex;gap:16px;justify-content:center;font-size:12.5px;color:var(--mut);margin-top:8px}
 .chart-ley span{display:flex;align-items:center;gap:6px}
 .veredicto{text-align:center;font-size:14px;font-weight:600;margin-top:12px;color:var(--tx)}
 
 /* ===== Listas de socios ===== */
-.chips{display:flex;gap:6px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none;position:relative}
+.chip-ind{position:absolute;left:0;top:0;width:0;height:0;border-radius:99px;background:var(--lima);box-shadow:0 0 16px rgba(150,248,98,.3);opacity:0;pointer-events:none;transition:transform .4s var(--sale),width .4s var(--sale),opacity .2s ease}
+.chips.listo .chip-ind{opacity:1}
 .chips::-webkit-scrollbar{display:none}
-.chip{border:1px solid rgba(255,255,255,.18);background:transparent;color:#fff;border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background-color .25s ease,color .25s ease,border-color .25s ease}
+.chip{border:1px solid rgba(255,255,255,.18);background:transparent;color:#fff;border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer;position:relative;flex-shrink:0;transition:background-color .25s ease,color .25s ease,border-color .25s ease,transform .16s ease;-webkit-tap-highlight-color:transparent}
+.chip:active{transform:scale(.96)}
 .chip.on{background:var(--lima);color:var(--marino);border-color:var(--lima)}
+.chips.listo .chip.on{background:transparent;border-color:transparent}
 #count{margin:12px 2px 0}
 .item{display:block;width:100%;text-align:left;color:var(--tx);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .fila{background:none;border:0;border-top:1px solid var(--bd);padding:14px 0;margin:0}
@@ -174,6 +185,12 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 .hoja>.name:first-child{font:700 16px var(--display);padding:12px 0 2px}
 .ctbtn{width:100%;display:flex;justify-content:space-between;align-items:center;background:var(--hoja);border:1px solid rgba(150,248,98,.35);border-radius:var(--r-hoja);padding:15px 16px;font-weight:700;color:var(--tx);margin-top:12px;cursor:pointer}
 .ctbtn .sub{color:var(--lima);font-size:18px}
+.ctbtn .flecha{display:inline-block;transition:transform .32s var(--sale)}
+.ctbtn.abierto .flecha{transform:rotate(90deg)}
+.acord{display:grid;grid-template-rows:0fr;transition:grid-template-rows .38s var(--sale)}
+.acord.abierto{grid-template-rows:1fr}
+.acord>div{min-height:0;overflow:hidden;visibility:hidden;transition:visibility 0s .38s}
+.acord.abierto>div{visibility:visible;transition:visibility 0s;padding-bottom:16px}
 .who{font-size:13px;font-weight:600;color:var(--mut);margin-top:16px;padding-top:12px;border-top:1px solid var(--bd)}
 .who:first-child{margin-top:4px;padding-top:4px;border-top:0}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
@@ -197,9 +214,7 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 #login #loginmsg{margin:14px 0 0}
 
 /* ===== Transiciones ===== */
-@keyframes deslIzq{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
-@keyframes deslDer{from{opacity:0;transform:translateX(-48px)}to{opacity:1;transform:none}}
-.desl-izq{animation:deslIzq .32s var(--sale)}.desl-der{animation:deslDer .32s var(--sale)}
+/* El cambio de pantalla y el seguimiento del dedo se animan desde app.js (cambiar / deslizar) */
 /* Entrada del Resumen tras la bienvenida: los bloques suben en secuencia y la barra se llena */
 @keyframes sube{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes llena{from{transform:scaleX(0)}to{transform:none}}
@@ -213,13 +228,33 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 @keyframes creceA{from{transform:scaleY(0)}to{transform:none}}
 .pie .crece .ba,.pie .crece .bb{transform-box:fill-box;animation:creceA .55s var(--d) var(--sale) both}
 .pie .crece .ba{transform-origin:50% 100%}.pie .crece .bb{transform-origin:50% 0}
+@keyframes aparece{from{opacity:0}to{opacity:1}}
+.pie .crece .on .va,.pie .crece .on .vb{animation:aparece .3s .6s both}
+/* Ficha del socio: sus bloques suben en secuencia al abrirla */
+@keyframes subeCorto{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+#det.entra>*{animation:subeCorto .5s calc(90ms + var(--i,0) * 50ms) var(--sale) both}
+/* Desafiliados: las barras por mes crecen al abrir la pantalla */
+#desMeses.crece .bar{transform-origin:left;animation:llena .6s calc(120ms + var(--i,0) * 35ms) var(--sale) both}
+/* Marcadores de espera mientras llegan los datos */
+@keyframes late{from{opacity:.4}to{opacity:.85}}
+#vRes.cargando #kpis:empty{height:372px;border-radius:22px;background:var(--hoja);border:1px solid var(--bd);animation:late 1s ease-in-out infinite alternate}
+#vRes.cargando #kpis:empty~*{visibility:hidden}
+#vBus.cargando #lista:empty{display:block;height:444px;--sk:rgba(255,255,255,.1);animation:late 1s ease-in-out infinite alternate;
+  background:linear-gradient(to bottom,var(--sk) 0 15px,transparent 15px) 16px 18px/56% 74px repeat-y,linear-gradient(to bottom,var(--sk) 0 10px,transparent 10px) 16px 44px/36% 74px repeat-y,var(--hoja)}
+/* Botón en espera */
+@keyframes gira{to{transform:rotate(360deg)}}
+button.pri{position:relative}
+button.pri.carga{color:transparent;pointer-events:none}
+button.pri.carga::after{content:"";position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2.5px solid rgba(0,27,58,.25);border-top-color:var(--marino);animation:gira .7s linear infinite}
 .pie .ba,.pie .bb,.pie .mes{transition:opacity .25s ease,fill .25s ease}
 /* Respuesta al tocar */
 .fila,.drow,.ley,.mrow,.mov{transition:background-color .14s ease;-webkit-tap-highlight-color:transparent}
 .fila:active,.drow:active,.ley:active,.mrow:active,button.mov:active{background-color:rgba(150,248,98,.07)}
-.pulso-top,.baja-res,.ctbtn,button.pri{transition:transform .14s ease;-webkit-tap-highlight-color:transparent}
+.pulso-top,.baja-res,.ctbtn,button.pri,.avatar,.back,.more,.acts a{transition:transform .16s ease;-webkit-tap-highlight-color:transparent}
 .pulso-top:active,.baja-res:active,.ctbtn:active,button.pri:active{transform:scale(.98)}
-@media(prefers-reduced-motion:reduce){.tabs::before,.tab,.chip,.fila,.drow,.ley,.mrow,.mov,.pulso-top,.baja-res,.ctbtn,button.pri,.pie .ba,.pie .bb,.pie .mes{transition:none}.desl-izq,.desl-der,#vRes.revela *,.pie .crece .ba,.pie .crece .bb{animation:none!important}#vRes.pre>*{opacity:1}.pulso-top:active,.baja-res:active,.ctbtn:active,button.pri:active{transform:none}}
+.avatar:active,.more:active,.acts a:active{transform:scale(.95)}
+.back:active{transform:translateX(-3px)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0s!important}#vRes.pre>*{opacity:1}.pulso-top:active,.baja-res:active,.ctbtn:active,button.pri:active,.tab:active,.chip:active,.avatar:active,.more:active,.acts a:active,.back:active{transform:none}}
 
 /* ===== Modo claro: página clara; cabecera, pestañas y bloque de afiliados conservan el marino de marca ===== */
 @media(prefers-color-scheme:light){
@@ -246,6 +281,8 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
   .more{border-color:var(--acento);color:var(--acento)}
   .chip{background:#fff;border-color:#cfd9e6;color:var(--tinta)}
   .chip.on{background:var(--lima);border-color:#7fe04a;color:var(--marino)}
+  .chip-ind{box-shadow:inset 0 0 0 1px #7fe04a}
+  #vBus.cargando #lista:empty{--sk:rgba(11,37,69,.08)}
   .badge::before{box-shadow:none}
   .nodo{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 20%,transparent)}
   /* Bloque de afiliados en blanco, como las demás tarjetas */
@@ -278,10 +315,12 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 .bienvenida .pildora{animation:bienSube .6s .05s var(--sale) both;margin-bottom:10px}
 .bienvenida .bt{font:600 18px var(--ui);color:var(--lima);animation:bienSube .6s .1s var(--sale) both}
 .bienvenida .bn{font:800 72px/.9 var(--display);font-stretch:75%;text-transform:uppercase;animation:bienSube .6s .18s var(--sale) both}
-.bienvenida.sale{animation:bienSale .4s ease-in forwards}
+.bienvenida.sale{animation:bienSale .45s cubic-bezier(.4,0,.2,1) forwards;pointer-events:none}
+.bienvenida.sale>*{animation:bienFuera .28s ease-in forwards}
 @keyframes bienEntra{from{opacity:0}to{opacity:1}}
 @keyframes bienSube{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @keyframes bienSale{to{opacity:0;transform:scale(1.04)}}
+@keyframes bienFuera{to{opacity:0;transform:translateY(-14px)}}
 @media(prefers-reduced-motion:reduce){.bienvenida,.bienvenida *,.bienvenida.sale{animation:none}}
 </style>
 </head>
