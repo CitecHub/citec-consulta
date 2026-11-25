@@ -117,6 +117,7 @@
   function abrirMenu() { pintarMenu(); velo.classList.add('on'); cajon.classList.add('on'); cajon.setAttribute('aria-hidden', 'false'); hb.setAttribute('aria-expanded', 'true'); }
   function cerrarMenu() { velo.classList.remove('on'); cajon.classList.remove('on'); cajon.setAttribute('aria-hidden', 'true'); hb.setAttribute('aria-expanded', 'false'); }
   hb.onclick = abrirMenu; velo.onclick = cerrarMenu;
+  C.abrirMenu = function () { if (st.u) abrirMenu(); };
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { cerrarMenu(); cerrarZoom(); } });
   function opcion(mod, icono, t, d, extra) {
     var b = el('button', 'cj-op' + (st.modulo === mod ? ' on' : '')); b.dataset.mod = mod;
@@ -637,6 +638,35 @@
     document.body.appendChild(z); c.focus();
   }
   function cerrarZoom() { var z = $('rbZoom'); if (z) z.remove(); }
+
+  // ===================== Gestos (deslizar con el dedo) =====================
+  // En reembolsos y revisión: hacia la derecha abre el menú (o vuelve a la pestaña/lista anterior);
+  // en Registrar, hacia la izquierda pasa a Mi solicitud. Con el menú abierto, hacia la izquierda lo cierra.
+  // En Consultar socios los gestos los maneja app.js (desde Resumen, hacia la derecha también abre el menú).
+  (function () {
+    var x0 = null, y0 = 0, t0 = 0, scr = null, scrL = 0;
+    function desplazableH(n) { for (; n && n !== document.body && n.nodeType === 1; n = n.parentNode) if (n.scrollWidth > n.clientWidth + 1) return n; return null; }
+    document.addEventListener('touchstart', function (e) {
+      x0 = null;
+      if (e.touches.length !== 1 || !st.u || $('rbZoom')) return;
+      if (!cajon.classList.contains('on') && st.modulo === 'socios') return;
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+      scr = desplazableH(e.target); scrL = scr ? scr.scrollLeft : 0;
+    }, { passive: true });
+    document.addEventListener('touchcancel', function () { x0 = null; }, { passive: true });
+    document.addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2 || Date.now() - t0 > 1000) return;
+      if (scr && Math.abs(scr.scrollLeft - scrL) > 2) return;
+      if (cajon.classList.contains('on')) { if (dx < 0) cerrarMenu(); return; }
+      if (dx > 0) {
+        if (st.modulo === 'revision' && st.rev.det) { st.rev.det = null; st.rev.obs = null; pintar(); cargarRevision().then(pintar); window.scrollTo(0, 0); return; }
+        if (st.modulo === 'reembolsos' && st.tab === 'solicitud') { st.tab = 'registrar'; st.confirmar = false; pintar(); window.scrollTo(0, 0); return; }
+        abrirMenu();
+      } else if (st.modulo === 'reembolsos' && st.tab === 'registrar') { st.tab = 'solicitud'; pintar(); window.scrollTo(0, 0); }
+    }, { passive: true });
+  })();
 
   // ===================== Sesión =====================
   async function alEntrar(u) {

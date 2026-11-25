@@ -330,7 +330,7 @@
   }
   function deslizar(dir) { // dir = +1 siguiente (dedo hacia la izquierda), -1 anterior
     if (vista === 'det' || vista === 'des' || vista === 'mov') { if (dir < 0) atras(); return; }
-    if (vista === 'res') { if (dir > 0) mostrar('bus'); return; }
+    if (vista === 'res') { if (dir > 0) mostrar('bus'); else if (window.CITEC.abrirMenu) window.CITEC.abrirMenu(); return; } // desde Resumen, hacia la derecha abre el menú
     var i = CHIPS.indexOf(filtro), j = i + dir;
     if (j < 0) { mostrar('res'); return; }
     if (j >= CHIPS.length) return;
@@ -345,7 +345,7 @@
     }
     document.addEventListener('touchstart', function (e) {
       x0 = null;
-      if (e.touches.length !== 1 || $('app').classList.contains('hidden') || !$('menu').classList.contains('hidden')) return;
+      if (e.touches.length !== 1 || $('app').classList.contains('hidden') || !$('menu').classList.contains('hidden') || $('cajon').classList.contains('on')) return;
       x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
       scr = desplazableH(e.target); scrL = scr ? scr.scrollLeft : 0;
     }, { passive: true });

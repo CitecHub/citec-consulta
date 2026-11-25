@@ -195,3 +195,15 @@ header .izq{display:flex;align-items:center;min-width:0}
   .rb-btn.peligro{border-color:rgba(210,65,47,.5);color:var(--bad)}
   .rb-toast{background:var(--marino);color:#fff}
 }
+
+/* ===== v22: sin resaltado azul al tocar (menú y módulos nuevos) y respuesta táctil propia ===== */
+.hambur,.velo,.cajon,.cajon *,#modRb,#modRb *,.rb-zoom,.rb-zoom *,.rb-toast{-webkit-tap-highlight-color:transparent}
+.hambur,.cajon button,#modRb button,.rb-zoom button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.cajon,.cj-op,.cj-op *{-webkit-user-select:none;user-select:none}
+.hambur:focus:not(:focus-visible),.cajon button:focus:not(:focus-visible),#modRb button:focus:not(:focus-visible),.rb-zoom button:focus:not(:focus-visible){outline:none}
+.cj-op,.hambur,.rb-op,.rb-btn,.rb-foto,.rb-sin,.rb-seg button,#modRb .fila,.rb-ver,.cambiar{transition:transform .12s ease,background-color .15s ease}
+.cj-op:active{background:rgba(150,248,98,.08)}
+.hambur:active,.rb-op:active,.rb-btn:not([disabled]):active,.rb-foto:active,.rb-sin:active,.rb-seg button:active{transform:scale(.97)}
+#modRb .fila:active{background-color:rgba(150,248,98,.07)}
+@media(prefers-color-scheme:light){#modRb .fila:active{background-color:rgba(44,143,28,.07)}}
+@media(prefers-reduced-motion:reduce){.cj-op,.hambur,.rb-op,.rb-btn,.rb-foto,.rb-sin,.rb-seg button,#modRb .fila{transition:none}.hambur:active,.rb-op:active,.rb-btn:active,.rb-foto:active,.rb-sin:active,.rb-seg button:active{transform:none}}
