@@ -5,6 +5,8 @@
   var SUPABASE_KEY = 'sb_publishable_Nn5MMyuZyw4BDMv-EvduXg_hf-ycVCF';
   var DOMINIO = '@citec.com.ec';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+  // Lo comparte con los demás módulos de la app (menú y reembolsos, en reembolsos.js)
+  window.CITEC = { sb: sb, url: SUPABASE_URL, key: SUPABASE_KEY, usuario: null, nombreUsuario: function (u) { return nombreUsuario(u); } };
   var $ = function (id) { return document.getElementById(id); };
 
   var datos = [], resumen = null, correo = '', filtro = 'Todos', desMes = 'todos', cacheCt = {};
@@ -31,7 +33,8 @@
   function nombreCom(s) { var n = (s.nombre_comercial || '').trim(); return n && norm(n) !== norm(s.razon_social) ? n : ''; }
 
   // ---------- login ----------
-  function vistaLogin() { $('login').classList.remove('hidden'); $('app').classList.add('hidden'); $('perfil').classList.add('hidden'); cerrarMenu(); }
+  function vistaLogin() { $('login').classList.remove('hidden'); $('app').classList.add('hidden'); $('perfil').classList.add('hidden'); cerrarMenu();
+    window.CITEC.usuario = null; document.dispatchEvent(new CustomEvent('citec:salir')); }
   function vistaApp() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('perfil').classList.remove('hidden'); }
   // ---------- menú de perfil ----------
   function cerrarMenu() { $('menu').classList.add('hidden'); $('perfilBtn').setAttribute('aria-expanded', 'false'); }
@@ -488,7 +491,7 @@
   function bienvenida(u) {
     var b = $('bienvenida'), n = nombreUsuario(u);
     $('bienNombre').textContent = n;
-    $('bienTexto').textContent = n ? 'Bienvenido/a' : 'Bienvenido/a a la consulta de socios';
+    $('bienTexto').textContent = n ? 'Bienvenido/a' : 'Bienvenido/a a CITEC App';
     b.classList.remove('hidden', 'sale');
     var cerrar = function () {
       if (b.classList.contains('hidden') || b.classList.contains('sale')) return;
@@ -502,6 +505,7 @@
     var u = s.data.session.user;
     $('menuMail').textContent = (u && u.email) || '';
     bienvenida(u); vistaApp(); cargar();
+    window.CITEC.usuario = u; document.dispatchEvent(new CustomEvent('citec:sesion', { detail: u }));
   }
   sb.auth.onAuthStateChange(function (ev) { if (ev === 'SIGNED_OUT') vistaLogin(); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && datos.length && vista !== 'det') cargar(); });

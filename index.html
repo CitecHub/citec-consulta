@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Socios CITEC</title>
+<title>CITEC App</title>
 <meta name="theme-color" content="#001b3a">
 <meta name="robots" content="noindex,nofollow">
 <link rel="manifest" href="manifest.webmanifest">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Socios CITEC">
+<meta name="apple-mobile-web-app-title" content="CITEC App">
 <style>
 /* ===== Tipografías (alojadas en la app; licencia OFL en /fonts) ===== */
 @font-face{font-family:'Bricolage';src:url(fonts/bricolage-grotesque.woff2) format('woff2-variations'),url(fonts/bricolage-grotesque.woff2) format('woff2');font-weight:200 800;font-stretch:75% 100%;font-display:swap}
@@ -284,21 +284,34 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 @keyframes bienSale{to{opacity:0;transform:scale(1.04)}}
 @media(prefers-reduced-motion:reduce){.bienvenida,.bienvenida *,.bienvenida.sale{animation:none}}
 </style>
+<link rel="stylesheet" href="reembolsos.css">
 </head>
 <body>
 <div id="bienvenida" class="bienvenida hidden" role="status" aria-live="polite">
   <img src="logo-blanco.png" alt="CITEC" width="100" height="72">
-  <div class="pildora">Consulta de socios</div>
+  <div class="pildora">CITEC App</div>
   <div class="bt" id="bienTexto">Bienvenido/a</div>
   <div class="bn" id="bienNombre"></div>
 </div>
 <header>
-  <div class="brand"><img src="logo-blanco.png" alt="CITEC" width="36" height="26"><h1>CITEC <span>·</span> Consulta de Socios</h1></div>
+  <div class="izq">
+    <button class="hambur hidden" id="hambur" aria-label="Abrir menú" aria-controls="cajon" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+    <div class="brand"><img src="logo-blanco.png" alt="CITEC" width="36" height="26"><h1>CITEC <span>App</span></h1></div>
+  </div>
   <div class="perfil hidden" id="perfil">
     <button class="avatar" id="perfilBtn" aria-label="Perfil" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></button>
     <div class="menu hidden" id="menu" role="menu"><div class="mail" id="menuMail"></div><button id="salir" role="menuitem">Cerrar sesión</button></div>
   </div>
 </header>
+<div class="velo" id="velo"></div>
+<nav class="cajon" id="cajon" aria-label="Menú principal" aria-hidden="true">
+  <div class="cj-marca"><img src="logo-blanco.png" alt=""><b>CITEC</b></div>
+  <div class="cj-user"><div class="cj-ini" id="cjIni"></div><div><div class="n" id="cjNom"></div><div class="m" id="cjMail"></div><span class="cj-rol hidden" id="cjRol"></span></div></div>
+  <div class="cj-tit">¿Qué quieres hacer?</div>
+  <div id="cjOps"></div>
+  <div class="cj-mas">Aquí irán apareciendo las nuevas funciones de la app.</div>
+  <div class="cj-pie"><div class="cj-ver">CITEC App · versión 21</div></div>
+</nav>
 <main>
   <section id="login" class="hidden">
     <div class="card">
@@ -370,8 +383,11 @@ button.pri{width:100%;margin-top:12px;font-size:16px;padding:14px;border:0;borde
 
     <p class="foot" id="actualizado"></p>
   </section>
+
+  <section id="modRb" class="hidden"></section>
 </main>
 <script src="supabase.js"></script>
 <script src="app.js"></script>
+<script src="reembolsos.js"></script>
 </body>
 </html>
